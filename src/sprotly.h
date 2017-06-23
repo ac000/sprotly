@@ -67,4 +67,6 @@
 		exit(EXIT_FAILURE); \
 	} while (0)
 
+#define NO_USER_MSG	"getpwnam: No suitable user, sprotly/nobody, found"
+
 #endif /* _SPROTLY_H_ */

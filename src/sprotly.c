@@ -177,8 +177,12 @@ static void open_logs(void)
 		int err __unused;
 
 		if (!pwd) {
-			errno = 0;
-			err_exit("getpwnam: 'sprotly' user not found.\n");
+			pwd = getpwnam("nobody");
+			if (!pwd) {
+				errno = 0;
+				err_exit(NO_USER_MSG);
+			}
+			logit("sprotly user not found, using 'nobody'\n");
 		}
 
 		chmod(LOG_PATH, 0700);

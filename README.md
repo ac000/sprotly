@@ -112,6 +112,8 @@ When run as root, the worker processes will change to run as the *sprotly*
 user. Also sprotly will write to two log files; */var/log/sprotly/access_log*
 and */var/log/sprotly/error_log*.
 
+If the sprotly user doesn't exist, then it will try using the 'nobody' user.
+
 Also by default sprotly will *daemon(3)ize* itself. When run in the foreground
 *(-D)* sprotly simply logs to the terminal.
 

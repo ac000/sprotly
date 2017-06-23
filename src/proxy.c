@@ -400,19 +400,24 @@ void init_proxy(const struct addrinfo *proxy)
 	sigset_t mask;
 	struct epoll_event ev;
 	struct conn *conn;
+	char *user = "sprotly";
 
 	if (euid == 0) {
 		struct passwd *pwd;
 		int err;
 
 		errno = 0;
-		pwd = getpwnam("sprotly");
+		pwd = getpwnam(user);
 		if (!pwd) {
-			if (errno == 0)
-				logerr("getpwnam: user 'sprotly' not found");
-			else
-				logerr("getpwnam");
-			goto out_err;
+			user = "nobody";
+			pwd = getpwnam(user);
+			if (!pwd) {
+				if (errno == 0)
+					logerr(NO_USER_MSG);
+				else
+					logerr("getpwnam");
+				goto out_err;
+			}
 		}
 
 		/* Drop root's supplimentary groups */
@@ -433,7 +438,7 @@ void init_proxy(const struct addrinfo *proxy)
 			logerr("setuid");
 			goto out_err;
 		}
-		logit("Worker switched to user sprotly:sprotly (%d:%d)\n",
+		logit("Worker switched to user %s:%s (%d:%d)\n", user, user,
 				pwd->pw_uid, pwd->pw_gid);
 	}
 
