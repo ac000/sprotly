@@ -545,7 +545,7 @@ int main(int argc, char *argv[])
 	ac_fs_mkdir_p(LOG_PATH);
 	open_logs();
 
-	logit("sprotly starting...\n");
+	logit("sprotly %s starting...\n", SPROTLY_VERSION + 1);
 	if (!debug && euid != 0) {
 		logit("Not running as root/uid 0, running in debug mode (-D)\n");
 		debug = true;
