@@ -47,7 +47,7 @@ For sprotly
     $ git clone https://github.com/ac000/sprotly
     $ cd src
     $ make
-    $ install -Dp 0755 sprotly /usr/local/sbin/
+    $ sudo install -Dp 0755 sprotly /usr/local/sbin/
 
 
 ## How to use
