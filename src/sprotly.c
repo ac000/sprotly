@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
 	struct addrinfo *proxy;
 	struct sigaction action;
 
-	while ((optind = getopt(argc, argv, "hDl:p:")) != -1) {
+	while ((optind = getopt(argc, argv, "vhDl:p:")) != -1) {
 		switch (optind) {
 		case 'D':
 			debug = true;
@@ -488,6 +488,9 @@ int main(int argc, char *argv[])
 		case 'p':
 			proxy_to = optarg;
 			break;
+		case 'v':
+			fprintf(stdout, "%s\n", SPROTLY_VERSION + 1);
+			exit(EXIT_SUCCESS);
 		case 'h':
 			disp_usage();
 			exit(EXIT_SUCCESS);
