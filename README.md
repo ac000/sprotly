@@ -32,7 +32,7 @@ between the client and squid.
 
 ## Building
 
-The only requirement is libac. On a rpm based system something like the
+The only hard requirement is libac. On a rpm based system something like the
 following should work
 
     $ git clone https://github.com/ac000/libac
@@ -41,6 +41,14 @@ following should work
     $ git archive --format=tar --prefix=libac-$(grep ^Version libac.spec | cut -f 2)/ -o ~/rpmbuild/SOURCES/libac-$(grep ^Version libac.spec | cut -f 2).tar HEAD
     $ rpmbuild -bb ~/rpmbuild/SPECS/libac.spec
     $ sudo dnf install ~/rpmbuild/RPMS/x86_64/libac-<VERSION>-?.<DIST>.x86_64.rpm
+
+sprotly can optionally include support for seccomp via libseccomp if you have
+it installed, e.g on Red Hat based distros this would be the
+
+    libseccomp
+    libseccomp-devel
+
+packages.
 
 For sprotly
 
@@ -120,6 +128,9 @@ You can create a *sprotly* user like
 
 Also by default sprotly will *daemon(3)ize* itself. When run in the foreground
 *(-D)* sprotly simply logs to the terminal.
+
+sprotly can also optionally do syscall filtering with seccomp(2) via
+libseccomp if you have it installed.
 
 
 ## License

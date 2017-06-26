@@ -6,7 +6,12 @@ LDFLAGS	= -Wl,-z,relro -Wl,-z,now -pie
 LIBS	= -lac
 INCS	=
 
-objects = sprotly.o proxy.o
+ifeq ($(shell pkg-config --exists libseccomp && echo 1), 1)
+LIBS	+= -lseccomp
+CFLAGS	+= -D_HAVE_LIBSECCOMP
+endif
+
+objects = sprotly.o proxy.o sprotly-seccomp.o
 
 sprotly: $(objects)
 	@echo -e "  LNK\t$@"
@@ -17,6 +22,10 @@ sprotly.o: sprotly.c
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
 proxy.o: proxy.c
+	@echo -e "  CC\t$@"
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+sprotly-seccomp.o: sprotly-seccomp.c
 	@echo -e "  CC\t$@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 

@@ -41,6 +41,7 @@
 
 #include "sprotly.h"
 #include "proxy.h"
+#include "sprotly-seccomp.h"
 
 static char **rargv;
 
@@ -612,8 +613,9 @@ int main(int argc, char *argv[])
 			err_exit("daemon");
 	}
 
-	create_workers(-1, proxy);
 	write_pid();
+	init_seccomp();
+	create_workers(-1, proxy);
 
 	for (;;) {
 		pause();
