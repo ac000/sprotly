@@ -114,6 +114,10 @@ and */var/log/sprotly/error_log*.
 
 If the sprotly user doesn't exist, then it will try using the 'nobody' user.
 
+You can create a *sprotly* user like
+
+    # useradd -r -d / -s /sbin/nologin sprotly
+
 Also by default sprotly will *daemon(3)ize* itself. When run in the foreground
 *(-D)* sprotly simply logs to the terminal.
 
