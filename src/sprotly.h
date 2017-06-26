@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <time.h>
 
+#include <libac.h>
+
 #define LOG_PATH	"/var/log/sprotly"
 #define ACCESS_LOG	"access_log"
 #define ERROR_LOG	"error_log"
