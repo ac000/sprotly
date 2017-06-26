@@ -357,7 +357,9 @@ static struct addrinfo *setup_proxy(const char *proxy_to)
 	} else {
 		struct addrinfo *pp;
 
-		split_host_port(proxy_to, host, port);
+		if (!split_host_port(proxy_to, host, port))
+			return NULL;
+
 		getaddrinfo(host, port, &hints, &proxy);
 		for (pp = proxy; pp != NULL; pp = pp->ai_next) {
 			err = try_proxy(pp);
@@ -446,7 +448,10 @@ static void do_listen(const char *where)
 		return;
 	}
 
-	split_host_port(where, host, port);
+	if (!split_host_port(where, host, port)) {
+		disp_usage();
+		exit(EXIT_FAILURE);
+	}
 	bind_socket(host, port);
 }
 
