@@ -187,8 +187,8 @@ static void open_logs(void)
 
 		chmod(LOG_PATH, 0700);
 		err = chown(LOG_PATH, pwd->pw_uid, pwd->pw_gid);
-		err = chown(ACCESS_LOG, pwd->pw_uid, pwd->pw_gid);
-		err = chown(ERROR_LOG, pwd->pw_uid, pwd->pw_gid);
+		err = chown(access_log, pwd->pw_uid, pwd->pw_gid);
+		err = chown(error_log, pwd->pw_uid, pwd->pw_gid);
 	}
 
 	if (!log_rotation)
