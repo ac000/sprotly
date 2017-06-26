@@ -542,6 +542,8 @@ int main(int argc, char *argv[])
 	if (!debug && euid == 0) {
 		access_log = LOG_PATH"/"ACCESS_LOG;
 		error_log = LOG_PATH"/"ERROR_LOG;
+
+		ac_fs_mkdir_p(LOG_PATH);
 		/*
 		 * Setup a signal handler for SIGHUP for logfile rotation,
 		 * but not in debug mode as we're just using the console.
@@ -554,7 +556,6 @@ int main(int argc, char *argv[])
 		access_log = "/proc/self/fd/1";
 		error_log = "/proc/self/fd/2";
 	}
-	ac_fs_mkdir_p(LOG_PATH);
 	open_logs();
 
 	logit("sprotly %s starting...\n", SPROTLY_VERSION + 1);
