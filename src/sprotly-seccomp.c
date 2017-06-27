@@ -16,6 +16,7 @@
 
 #define _GNU_SOURCE
 
+#include <sys/socket.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -78,16 +79,12 @@ void init_seccomp(void)
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(socket), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(connect), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(bind), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(listen), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getsockopt), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(setsockopt), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_create1), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_ctl), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_wait), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(setgroups), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(setgid), 0);
