@@ -225,6 +225,10 @@ static struct conn *do_open_conn(const struct addrinfo *host,
 	}
 
 	conn = malloc(sizeof(struct conn));
+	if (!conn) {
+		logerr("malloc");
+		return NULL;
+	}
 	conn->type = SPROTLY_PROXY;
 	conn->fd = ofd;
 
@@ -276,6 +280,10 @@ static int do_accept(int lfd)
 		return -1;
 	}
 	conn = malloc(sizeof(struct conn));
+	if (!conn) {
+		logerr("malloc");
+		return 0;
+	}
 	ac_net_inet_ntop(&ss, conn->src_addr, INET6_ADDRSTRLEN);
 	src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
