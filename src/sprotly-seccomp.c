@@ -50,7 +50,6 @@ void init_seccomp(void)
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
 			SCMP_CMP(1, SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR, 0));
 
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
