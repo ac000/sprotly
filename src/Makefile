@@ -6,7 +6,10 @@ LDFLAGS	= -Wl,-z,relro -Wl,-z,now -pie
 LIBS	= -lac
 INCS	=
 
-ifeq ($(shell pkg-config --exists libseccomp && echo 1), 1)
+ifeq (${SPROTLY_SECCOMP}, 0)
+# Don't build with seccomp support
+CFLAGS  +=
+else ifeq ($(shell pkg-config --exists libseccomp && echo 1), 1)
 LIBS	+= -lseccomp
 CFLAGS	+= -D_HAVE_LIBSECCOMP
 endif

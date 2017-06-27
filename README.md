@@ -50,6 +50,11 @@ it installed, e.g on Red Hat based distros this would be the
 
 packages.
 
+This can be disabled at build time by setting the SPROTLY\_SECCOMP shell
+environment variable to 0. e.g
+
+    $ SPROTLY_SECCOMP=0 make
+
 For sprotly
 
     $ git clone https://github.com/ac000/sprotly
