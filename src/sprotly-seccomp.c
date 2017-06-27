@@ -16,6 +16,7 @@
 
 #define _GNU_SOURCE
 
+#include <fcntl.h>
 #include <errno.h>
 
 #ifdef _HAVE_LIBSECCOMP
@@ -25,6 +26,8 @@
 #include "sprotly.h"
 
 extern int access_log_fd;
+extern const char *access_log;
+extern const char *error_log;
 
 void init_seccomp(void)
 {
@@ -38,7 +41,15 @@ void init_seccomp(void)
 		return;
 	}
 
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+	/* Allow unrestricted opening of the log files */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)access_log));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)error_log));
+	/* Allow opening of other files read-only */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+			SCMP_CMP(1, SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR, 0));
+
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 

@@ -51,8 +51,8 @@ uid_t euid;
 int access_log_fd;
 int error_log_fd;
 
-static const char *access_log;
-static const char *error_log;
+const char *access_log;
+const char *error_log;
 
 ac_slist_t *listen_fds;
 
