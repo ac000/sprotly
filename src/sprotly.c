@@ -151,7 +151,7 @@ static void write_pid(void)
 	if (fd == -1)
 		return;
 	fp = fdopen(fd, "w");
-	fprintf(fp, "%d", getpid());
+	fprintf(fp, "%d\n", getpid());
 
 	fclose(fp);
 	close(dfd);
