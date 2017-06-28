@@ -171,10 +171,12 @@ static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
 		p = p->next;
 	}
 
-	ac_slist_preadd(close_list, conn->other);
+	if (conn->other) {
+		ac_slist_preadd(close_list, conn->other);
+		epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->other->fd, NULL);
+	}
 	ac_slist_preadd(close_list, conn);
 	epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->fd, NULL);
-	epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->other->fd, NULL);
 }
 
 static void check_proxy_connect(struct conn *conn)
