@@ -77,7 +77,10 @@ void init_seccomp(void)
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(kill), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 0);
 
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(socket), 0);
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(socket), 1,
+			SCMP_CMP(1, SCMP_CMP_MASKED_EQ,
+				SOCK_STREAM | SOCK_NONBLOCK,
+				SOCK_STREAM | SOCK_NONBLOCK));
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(connect), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getsockopt), 0);
