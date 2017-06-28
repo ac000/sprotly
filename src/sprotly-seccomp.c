@@ -30,6 +30,7 @@
 #include "proxy.h"
 
 extern int access_log_fd;
+extern int error_log_fd;
 extern const char *access_log;
 extern const char *error_log;
 extern ac_slist_t *listen_fds;
@@ -59,7 +60,14 @@ void init_seccomp(void)
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+	/*
+	 * Restrict write access to the log files. Even after log file
+	 * rotation they should still have the same fd numbers.
+	 */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+			SCMP_A0(SCMP_CMP_EQ, access_log_fd));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
+			SCMP_A0(SCMP_CMP_EQ, error_log_fd));
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
