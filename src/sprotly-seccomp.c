@@ -75,8 +75,17 @@ void init_seccomp(void)
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(splice), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pipe2), 0);
 
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chmod), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chown), 0);
+	/* Restrict chmod/chown to the log files */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chmod), 2,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)LOG_PATH),
+			SCMP_A1(SCMP_CMP_EQ, 0700));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chown), 1,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)LOG_PATH));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chown), 1,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)access_log));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chown), 1,
+			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)error_log));
+
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
