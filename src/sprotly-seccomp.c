@@ -24,16 +24,21 @@
 #include <seccomp.h>
 #endif
 
+#include <libac.h>
+
 #include "sprotly.h"
+#include "proxy.h"
 
 extern int access_log_fd;
 extern const char *access_log;
 extern const char *error_log;
+extern ac_slist_t *listen_fds;
 
 void init_seccomp(void)
 {
 #ifdef _HAVE_LIBSECCOMP
 	scmp_filter_ctx sec_ctx;
+	ac_slist_t *list = listen_fds;
 	int err;
 
 	sec_ctx = seccomp_init(SCMP_ACT_ERRNO(EACCES));
@@ -81,8 +86,15 @@ void init_seccomp(void)
 			SCMP_CMP(1, SCMP_CMP_MASKED_EQ,
 				SOCK_STREAM | SOCK_NONBLOCK,
 				SOCK_STREAM | SOCK_NONBLOCK));
+	/* Restrict accept4(2) to the listen socket(s) */
+	while (list) {
+		int fd = ((struct listen_fd *)list->data)->fd;
+
+		seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 1,
+				SCMP_A0(SCMP_CMP_EQ, fd));
+		list = list->next;
+	}
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(connect), 0);
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getsockopt), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_create1), 0);
