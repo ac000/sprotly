@@ -228,13 +228,13 @@ static struct conn *do_open_conn(const struct addrinfo *host,
 	err = connect(ofd, host->ai_addr, host->ai_addrlen);
 	if (err == -1 && errno != EINPROGRESS) {
 		logerr("connect");
-		return NULL;
+		goto close_sock;
 	}
 
 	conn = malloc(sizeof(struct conn));
 	if (!conn) {
 		logerr("malloc");
-		return NULL;
+		goto close_sock;
 	}
 	conn->type = SPROTLY_PROXY;
 	conn->fd = ofd;
@@ -259,6 +259,11 @@ static struct conn *do_open_conn(const struct addrinfo *host,
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, ofd, &ev);
 
 	return other;
+
+close_sock:
+	if (ofd > -1)
+		close(ofd);
+	return NULL;
 }
 
 static void proxy_handshake(struct conn *conn)
