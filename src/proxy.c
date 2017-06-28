@@ -217,9 +217,14 @@ static struct conn *do_open_conn(const struct addrinfo *host,
 {
 	struct epoll_event ev;
 	struct conn *conn;
-	int ofd = socket(host->ai_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	int ofd;
 	int err;
 
+	ofd = socket(host->ai_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	if (ofd == -1) {
+		logerr("socket");
+		return NULL;
+	}
 	err = connect(ofd, host->ai_addr, host->ai_addrlen);
 	if (err == -1 && errno != EINPROGRESS) {
 		logerr("connect");
