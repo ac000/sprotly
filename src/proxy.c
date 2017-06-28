@@ -293,6 +293,7 @@ static int do_accept(int lfd)
 	}
 	conn = malloc(sizeof(struct conn));
 	if (!conn) {
+		close(fd);
 		logerr("malloc");
 		return 0;
 	}
@@ -311,6 +312,7 @@ static int do_accept(int lfd)
 
 	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
 	if (err == -1) {
+		close(conn->fd);
 		free(conn);
 		logerr("pipe2");
 		return 0;
