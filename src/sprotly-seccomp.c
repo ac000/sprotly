@@ -17,6 +17,7 @@
 #define _GNU_SOURCE
 
 #include <sys/socket.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -96,7 +97,11 @@ void init_seccomp(void)
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pause), 0);
 
-	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(kill), 0);
+	/* Restrict kill to sending SIGHUP & SIGTERM to the children */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(kill), 2,
+			SCMP_A0(SCMP_CMP_EQ, 0), SCMP_A1(SCMP_CMP_EQ, SIGHUP));
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(kill), 2,
+			SCMP_A0(SCMP_CMP_EQ, 0), SCMP_A1(SCMP_CMP_EQ, SIGTERM));
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 0);
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(socket), 1,
