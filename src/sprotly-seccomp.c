@@ -34,6 +34,7 @@ extern int access_log_fd;
 extern int error_log_fd;
 extern const char *access_log;
 extern const char *error_log;
+extern const char *sprotly_pid_file;
 extern ac_slist_t *listen_fds;
 
 void init_seccomp(void)
@@ -86,6 +87,11 @@ void init_seccomp(void)
 			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)access_log));
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(chown), 1,
 			SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)error_log));
+
+	/* Allow to unlink the pid file */
+	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlinkat), 2,
+			SCMP_A1(SCMP_CMP_EQ, (scmp_datum_t)sprotly_pid_file),
+			SCMP_A2(SCMP_CMP_EQ, 0));
 
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
 	seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);

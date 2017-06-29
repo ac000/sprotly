@@ -54,6 +54,9 @@ int error_log_fd;
 const char *access_log;
 const char *error_log;
 
+static const char *sprotly_pid_dir;
+const char *sprotly_pid_file = "sprotly.pid";
+
 ac_slist_t *listen_fds;
 
 static volatile sig_atomic_t sprotly_terminate;
@@ -118,10 +121,23 @@ static void set_proc_title(const char *title)
 	strncpy(rargv[0], title, argv_last - rargv[0]);
 }
 
+static void unlink_pid(void)
+{
+	int dfd;
+
+	if (euid != 0)
+		return;
+
+	dfd = open(sprotly_pid_dir, O_RDONLY | O_DIRECTORY);
+	if (dfd == -1)
+		return;
+
+	unlinkat(dfd, sprotly_pid_file, 0);
+	close(dfd);
+}
+
 static void write_pid(void)
 {
-	char *path = "/run";
-	char *pid_path = "/run/sprotly";
 	struct stat sb;
 	FILE *fp;
 	int dfd;
@@ -131,24 +147,25 @@ static void write_pid(void)
 	if (euid != 0)
 		return;
 
-	err = stat(path, &sb);
-	if (err) {
-		path = "/var/run";
-		err = stat(path, &sb);
+	err = stat("/run", &sb);
+	if (!err) {
+		sprotly_pid_dir = "/run/sprotly";
+	} else {
+		err = stat("/var/run", &sb);
 		if (err)
 			return;
-		pid_path = "/var/run/sprotly";
+		sprotly_pid_dir = "/var/run/sprotly";
 	}
 
-	err = mkdir(pid_path, 0777);
+	err = mkdir(sprotly_pid_dir, 0777);
 	if (err && errno != EEXIST)
 		return;
 
-	dfd = open(pid_path, O_RDONLY | O_DIRECTORY);
+	dfd = open(sprotly_pid_dir, O_RDONLY | O_DIRECTORY);
 	if (dfd == -1)
 		return;
 
-	fd = openat(dfd, "sprotly.pid", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	fd = openat(dfd, sprotly_pid_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 	if (fd == -1)
 		return;
 	fp = fdopen(fd, "w");
@@ -637,6 +654,7 @@ int main(int argc, char *argv[])
 	ac_slist_destroy(&listen_fds, free);
 	close(access_log_fd);
 	close(error_log_fd);
+	unlink_pid();
 
 	exit(EXIT_SUCCESS);
 }
