@@ -54,14 +54,14 @@ static const char * const event_type_str[] __maybe_unused = {
 	"SPROTLY_LISTEN",
 	"SPROTLY_PEER",
 	"SPROTLY_PROXY",
-	"SPROTLY_LOG_ROTATE"
+	"SPROTLY_SIGNAL"
 };
 
 enum event_type {
 	SPROTLY_LISTEN = 0,
 	SPROTLY_PEER,
 	SPROTLY_PROXY,
-	SPROTLY_LOG_ROTATE
+	SPROTLY_SIGNAL
 };
 
 enum proxy_conn_state {
@@ -90,6 +90,7 @@ struct conn {
 static int epollfd;
 extern int access_log_fd;
 extern int error_log_fd;
+extern ac_slist_t *listen_fds;
 
 static void reopen_logs(void)
 {
@@ -98,6 +99,31 @@ static void reopen_logs(void)
 
 	close(error_log_fd);
 	error_log_fd = open(LOG_PATH"/"ERROR_LOG, O_WRONLY | O_APPEND, 0666);
+}
+
+static void handle_signals(struct conn *conn)
+{
+	for (;;) {
+		ssize_t r;
+		struct signalfd_siginfo fdsi;
+
+		r = read(conn->fd, &fdsi, sizeof(struct signalfd_siginfo));
+		if (r == -1)
+			break;
+
+		if (fdsi.ssi_signo == SIGHUP)
+			reopen_logs();
+		if (fdsi.ssi_signo == SIGTERM) {
+			logit("Worker got SIGTERM, exiting\n");
+			close(conn->fd);
+			close(access_log_fd);
+			close(error_log_fd);
+			close(epollfd);
+			free(conn);
+			ac_slist_destroy(&listen_fds, free);
+			exit(EXIT_SUCCESS);
+		}
+	}
 }
 
 /*
@@ -355,14 +381,8 @@ static void do_proxy(const struct addrinfo *proxy)
 						break;
 				}
 				continue;
-			} else if (conn->type == SPROTLY_LOG_ROTATE) {
-				ssize_t r __always_unused;
-				struct signalfd_siginfo fdsi;
-
-				r = read(conn->fd, &fdsi,
-					 sizeof(struct signalfd_siginfo));
-
-				reopen_logs();
+			} else if (conn->type == SPROTLY_SIGNAL) {
+				handle_signals(conn);
 				continue;
 			}
 
@@ -415,7 +435,6 @@ static void do_proxy(const struct addrinfo *proxy)
 
 void init_proxy(const struct addrinfo *proxy)
 {
-	extern ac_slist_t *listen_fds;
 	extern bool debug;
 	extern uid_t euid;
 	ac_slist_t *list = listen_fds;
@@ -477,20 +496,26 @@ void init_proxy(const struct addrinfo *proxy)
 		list = list->next;
 	}
 
+	/*
+	 * Setup signalfd signal handling blocking the standard signal
+	 * delivery for the signals we want handled by signalfd()
+	 */
+	sigemptyset(&mask);
 	if (!debug && euid == 0) {
-		/* Setup SIGHUP signalfd handler for log file rotation */
-		sigemptyset(&mask);
+		/* SIGHUP for log file rotation */
 		sigaddset(&mask, SIGHUP);
 		sigprocmask(SIG_BLOCK, &mask, NULL);
-
-		conn = malloc(sizeof(struct conn));
-		conn->type = SPROTLY_LOG_ROTATE;
-		conn->fd = signalfd(-1, &mask, SFD_NONBLOCK);
-		conn->other = NULL;
-		ev.events = EPOLLIN;
-		ev.data.ptr = (void *)conn;
-		epoll_ctl(epollfd, EPOLL_CTL_ADD, conn->fd, &ev);
 	}
+	sigaddset(&mask, SIGTERM);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+
+	conn = malloc(sizeof(struct conn));
+	conn->type = SPROTLY_SIGNAL;
+	conn->fd = signalfd(-1, &mask, SFD_NONBLOCK);
+	conn->other = NULL;
+	ev.events = EPOLLIN;
+	ev.data.ptr = (void *)conn;
+	epoll_ctl(epollfd, EPOLL_CTL_ADD, conn->fd, &ev);
 
 	do_proxy(proxy);
 

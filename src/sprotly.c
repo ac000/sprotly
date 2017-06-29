@@ -56,6 +56,7 @@ const char *error_log;
 
 ac_slist_t *listen_fds;
 
+static volatile sig_atomic_t sprotly_terminate;
 static volatile sig_atomic_t create_nr_new_workers;
 static volatile sig_atomic_t log_rotation;
 
@@ -207,10 +208,9 @@ static void open_logs(void)
 	log_rotation = 0;
 }
 
-static void terminate(int signo __always_unused)
+static void sh_terminate(int signo __always_unused)
 {
-	kill(0, SIGTERM);
-	_exit(EXIT_SUCCESS);
+	sprotly_terminate = 1;
 }
 
 /*
@@ -526,7 +526,7 @@ int main(int argc, char *argv[])
 	 * worker processes.
 	 */
 	sigemptyset(&action.sa_mask);
-	action.sa_handler = terminate;
+	action.sa_handler = sh_terminate;
 	action.sa_flags = 0;
 	sigaction(SIGTERM, &action, NULL);
 
@@ -624,6 +624,11 @@ int main(int argc, char *argv[])
 			create_workers(create_nr_new_workers, proxy);
 		if (log_rotation)
 			open_logs();
+		if (sprotly_terminate) {
+			logit("Master got SIGTERM. Sending SIGTERM to workers and exiting\n");
+			kill(0, SIGTERM);
+			break;
+		}
 	}
 
 	freeaddrinfo(proxy);
