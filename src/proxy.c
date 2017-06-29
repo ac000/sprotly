@@ -505,6 +505,9 @@ void init_proxy(const struct addrinfo *proxy)
 		/* SIGHUP for log file rotation */
 		sigaddset(&mask, SIGHUP);
 		sigprocmask(SIG_BLOCK, &mask, NULL);
+	} else {
+		/* Ignore SIGHUP so we don't get killed accidentally */
+		signal(SIGHUP, SIG_IGN);
 	}
 	sigaddset(&mask, SIGTERM);
 	sigprocmask(SIG_BLOCK, &mask, NULL);

@@ -556,6 +556,8 @@ int main(int argc, char *argv[])
 	} else {
 		access_log = "/proc/self/fd/1";
 		error_log = "/proc/self/fd/2";
+		/* Ignore SIGHUP so we don't get killed by accident */
+		signal(SIGHUP, SIG_IGN);
 	}
 	open_logs();
 
