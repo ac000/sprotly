@@ -78,6 +78,7 @@ sprotly has no configuration file and has only a few options
       -p      - The optional host/address of the proxy and port to send
                  requests to. If the host is unspecified uses localhost. Will
                  try IPv6 first then IPv4.
+      -v      - Display the version.
       -h      - Display this text.
 
     Example -

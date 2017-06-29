@@ -79,6 +79,7 @@ static void disp_usage(void)
 			"and port to send requests\n             to. If the "
 			"host is unspecified uses localhost. Will try IPv6 "
 			"first\n             then IPv4.\n");
+	fprintf(stderr, "  -v      - Display the version.\n");
 	fprintf(stderr, "  -h      - Display this text.\n\n");
 
 	fprintf(stderr, "Example -\n\n");
