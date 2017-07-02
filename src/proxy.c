@@ -221,7 +221,7 @@ static void check_proxy_connect(struct conn *conn)
 
 static void send_proxy_connect(struct conn *conn)
 {
-	bool ipv6 = strchr(conn->other->dst_addr, ':') ? true : false;
+	bool ipv6 = strchr(conn->other->dst_addr, ':');
 	char buf[PIPE_SIZE + 1];
 	ssize_t bytes_sent;
 	int len;
@@ -326,7 +326,7 @@ static int do_accept(int lfd)
 	ac_net_inet_ntop(&ss, conn->src_addr, INET6_ADDRSTRLEN);
 	src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
-	ipv6 = (ss.ss_family == AF_INET6) ? true : false;
+	ipv6 = ss.ss_family == AF_INET6;
 	getsockopt(fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP,
 			ipv6 ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
 			(struct sockaddr *)&ss, &addrlen);
