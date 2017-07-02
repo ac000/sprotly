@@ -117,7 +117,7 @@ i.e
     5 - proxy pipe read end
     6 - proxy pipe write end
 
-however on modern 64bit systems with plenty of RAM this should really be an
+however on modern 64bit systems with plenty of RAM this shouldn't really be an
 issue, hence at startup sprotly will attempt to increase RLIMIT\_NOFILE to
 *65536*. This limit is per-process and should allow for 10,000+ connections
 per worker.
