@@ -68,7 +68,7 @@ For sprotly
 sprotly has no configuration file and has only a few options
 
     $ ./sprotly -h
-    Usage: sprotly [-D] <-l [host]:port> <-p [proxy]:port> [-h]
+    Usage: sprotly [-D] <-l [host]:port> <-p [proxy]:port> [-v] [-h]
 
       -D      - Run in debug mode. Log goes to terminal and runs in the
                  foreground.
