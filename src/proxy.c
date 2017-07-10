@@ -219,6 +219,10 @@ static void check_proxy_connect(struct conn *conn)
 	conn->other->proxy_status = CONNECTED;
 }
 
+/*
+ * Once connected to the proxy, send the correct CONNECT request through
+ * with the destination IP address as retrieved from the tcp/ip stack.
+ */
 static void send_proxy_connect(struct conn *conn)
 {
 	bool ipv6 = strchr(conn->other->dst_addr, ':');
@@ -238,6 +242,9 @@ static void send_proxy_connect(struct conn *conn)
 	conn->other->proxy_status = CONNECT_SENT;
 }
 
+/*
+ * Initiate a connection to the proxy.
+ */
 static struct conn *do_open_conn(const struct addrinfo *host,
 				 struct conn *other)
 {
@@ -292,6 +299,9 @@ close_sock:
 	return NULL;
 }
 
+/*
+ * Handle the states of connecting to the proxy.
+ */
 static void proxy_handshake(struct conn *conn)
 {
 	if (conn->other->proxy_status == UNCONNECTED)
@@ -300,6 +310,9 @@ static void proxy_handshake(struct conn *conn)
 		check_proxy_connect(conn);
 }
 
+/*
+ * accept new connections from clients.
+ */
 static int do_accept(int lfd)
 {
 	int fd;
@@ -326,6 +339,7 @@ static int do_accept(int lfd)
 	ac_net_inet_ntop(&ss, conn->src_addr, INET6_ADDRSTRLEN);
 	src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
+	/* Get the original destination IP address */
 	ipv6 = ss.ss_family == AF_INET6;
 	getsockopt(fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP,
 			ipv6 ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
@@ -433,6 +447,12 @@ static void do_proxy(const struct addrinfo *proxy)
 	}
 }
 
+/*
+ * Main proxy initialisation code.
+ *
+ * Whenever the master process forks a new worker, this is the function
+ * that is called.
+ */
 void init_proxy(const struct addrinfo *proxy)
 {
 	extern bool debug;
@@ -443,6 +463,10 @@ void init_proxy(const struct addrinfo *proxy)
 	struct conn *conn;
 	char *user = "sprotly";
 
+	/*
+	 * If we are running as root, try switching to the 'sprotly'
+	 * user, otherwise try the 'nobody' user.
+	 */
 	if (euid == 0) {
 		struct passwd *pwd;
 		int err;
@@ -485,6 +509,7 @@ void init_proxy(const struct addrinfo *proxy)
 
 	epollfd = epoll_create1(0);
 
+	/* Add the listen socket(s) to epoll */
 	while (list) {
 		conn = malloc(sizeof(struct conn));
 		conn->type = SPROTLY_LISTEN;
