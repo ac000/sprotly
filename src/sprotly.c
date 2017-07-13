@@ -177,7 +177,7 @@ static void write_pid(void)
 }
 
 /*
- * Open log files, handling logile rotation by sending a SIGHUP to
+ * Open log files, handling logfile rotation by sending a SIGHUP to
  * the worker processes notifying them to re-open their log files.
  */
 static void open_logs(void)
