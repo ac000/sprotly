@@ -43,6 +43,9 @@
 #include "proxy.h"
 #include "sprotly-seccomp.h"
 
+/* What to set RLIMIT_NOFILE to */
+#define NOFILE_LIMIT	65536
+
 static char **rargv;
 
 bool debug;
@@ -602,9 +605,9 @@ int main(int argc, char *argv[])
 		struct rlimit cur;
 
 		getrlimit(RLIMIT_NOFILE, &cur);
-		if (cur.rlim_max < 65536) {
-			struct rlimit new = { .rlim_cur = 65536,
-					      .rlim_max = 65536 };
+		if (cur.rlim_max < NOFILE_LIMIT) {
+			struct rlimit new = { .rlim_cur = NOFILE_LIMIT,
+					      .rlim_max = NOFILE_LIMIT };
 
 			err = setrlimit(RLIMIT_NOFILE, &new);
 			if (err)
