@@ -68,14 +68,13 @@ static volatile sig_atomic_t log_rotation;
 
 static void disp_usage(void)
 {
-	fprintf(stderr, "Usage: sprotly [-D] <-l [host]:port> <-p [proxy]:port>"
-			" [-h]\n\n");
+	fprintf(stderr, "Usage: sprotly [-D] <-l [host]:port[,[host]:port,...]> <-p [proxy]:port> [-h]\n\n");
 
 	fprintf(stderr, "  -D      - Run in debug mode. Log goes to terminal"
 		        " and runs in the foreground.\n");
 	fprintf(stderr, "  -l      - Listens on the optionally specified "
-			"host/address and port. If no\n             host is "
-			"specified uses the unspecified address (::, "
+			"host/address(es) and port(s).\n             If no "
+			"host is specified uses the unspecified address (::, "
 			"0.0.0.0).\n             Listens on both IPv6 and "
 			"IPv4.\n");
 	fprintf(stderr, "  -p      - The optional host/address of the proxy "
@@ -462,19 +461,25 @@ static void do_listen(const char *where)
 {
 	char host[NI_MAXHOST];
 	char port[6];	/* 0..65535 + \0 */
+	char **fields;
+	char **l;
 
-	/* Handle :port */
-	if (where[0] == ':') {
-		bind_socket("::", where + 1);
-		bind_socket("0.0.0.0", where + 1);
-		return;
-	}
+	fields = ac_str_split(where, ',', 0);
+	for (l = fields; *l != NULL; l++) {
+		/* Handle :port */
+		if (*l[0] == ':') {
+			bind_socket("::", *l + 1);
+			bind_socket("0.0.0.0", *l + 1);
+			return;
+		}
 
-	if (!split_host_port(where, host, port)) {
-		disp_usage();
-		exit(EXIT_FAILURE);
+		if (!split_host_port(*l, host, port)) {
+			disp_usage();
+			exit(EXIT_FAILURE);
+		}
+		bind_socket(host, port);
 	}
-	bind_socket(host, port);
+	ac_str_freev(fields);
 }
 
 static void create_workers(int nr_workers, const struct addrinfo *proxy)

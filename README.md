@@ -68,12 +68,12 @@ For sprotly
 sprotly has no configuration file and has only a few options
 
     $ ./sprotly -h
-    Usage: sprotly [-D] <-l [host]:port> <-p [proxy]:port> [-v] [-h]
+    Usage: sprotly [-D] <-l [host]:port[,...]> <-p [proxy]:port> [-v] [-h]
 
       -D      - Run in debug mode. Log goes to terminal and runs in the
                  foreground.
-      -l      - Listens on the optionally specified host/address and port. If
-                 no host is specified uses the unspecified address
+      -l      - Listens on the optionally specified host/address(es) and
+                 port(s). If no host is specified uses the unspecified address
                  (::, 0.0.0.0). Listens on both IPv6 and IPv4.
       -p      - The optional host/address of the proxy and port to send
                  requests to. If the host is unspecified uses localhost. Will
@@ -87,6 +87,8 @@ sprotly has no configuration file and has only a few options
 
 *-l* and *-p* are the only required options. And the example shown is generally
 how you'd want to run it.
+
+-l can take a comma separated list of [host]:port pairs.
 
 This will tell sprotly to listen on port *3129* on *::1* and *127.0.0.1* for
 client requests which have been redirected by the above ip{6}tables rules.
