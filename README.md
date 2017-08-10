@@ -42,6 +42,10 @@ following should work
     $ rpmbuild -bb ~/rpmbuild/SPECS/libac.spec
     $ sudo dnf install ~/rpmbuild/RPMS/x86_64/libac-<VERSION>-?.<DIST>.x86_64.rpm
 
+You can create a suitable rpmbuild tree with
+
+    $ mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
 sprotly can optionally include support for seccomp via libseccomp if you have
 it installed, e.g on Red Hat based distros this would be the
 
