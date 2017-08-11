@@ -464,7 +464,7 @@ static void do_listen(const char *where)
 	char **fields;
 	char **l;
 
-	fields = ac_str_split(where, ',', 0);
+	fields = ac_str_split(where, ',', AC_STR_SPLIT_ALWAYS);
 	for (l = fields; *l != NULL; l++) {
 		/* Handle :port */
 		if (*l[0] == ':') {
