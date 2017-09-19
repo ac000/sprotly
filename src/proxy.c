@@ -42,6 +42,7 @@
 
 #include "sprotly.h"
 #include "proxy.h"
+#include "tls_sni.h"
 
 #ifndef IP6T_SO_ORIGINAL_DST
 #define IP6T_SO_ORIGINAL_DST	  80
@@ -85,6 +86,9 @@ struct conn {
 
 	char src_addr[INET6_ADDRSTRLEN];
 	char dst_addr[INET6_ADDRSTRLEN];
+	char dst_host[FQDN_MAX + 1];
+
+	bool read_sni;
 };
 
 static int epollfd;
@@ -225,13 +229,17 @@ static void check_proxy_connect(struct conn *conn)
  */
 static void send_proxy_connect(struct conn *conn)
 {
-	bool ipv6 = strchr(conn->other->dst_addr, ':');
+	bool ipv6 = strchr(conn->other->dst_addr, ':') &&
+		!strlen(conn->other->dst_host);
 	char buf[PIPE_SIZE + 1];
 	ssize_t bytes_sent;
 	int len;
 
 	len = snprintf(buf, sizeof(buf), "CONNECT %s%s%s:443 HTTP/1.0\r\n\r\n",
-				ipv6 ? "[" : "", conn->other->dst_addr,
+				ipv6 ? "[" : "",
+				strlen(conn->other->dst_host) ?
+					conn->other->dst_host :
+					conn->other->dst_addr,
 				ipv6 ? "]" : "");
 	bytes_sent = send(conn->fd, buf, len, 0);
 	if (bytes_sent == -1) {
@@ -311,6 +319,33 @@ static void proxy_handshake(struct conn *conn)
 }
 
 /*
+ * After the initial 3way handshake, the first thing the client will
+ * send is the 'Client Hello' message, try and extract the TLS SNI
+ * field from this to use in the CONNECT request to the proxy before
+ * actually forwarding the 'Client Hello' message etc...
+ *
+ * We use recv(2) with the MSG_PEEK flag set so the data will still be
+ * there for splice(2).
+ */
+static void read_sni(struct conn *conn)
+{
+	ssize_t bytes;
+	char buf[PIPE_SIZE];
+	extern bool use_sni;
+
+	if (!use_sni)
+		goto out_sni_read;
+
+	bytes = recv(conn->fd, buf, sizeof(buf), MSG_PEEK);
+	if (bytes == -1)
+		return;
+	parse_tls_header(buf, sizeof(buf), conn->dst_host);
+
+out_sni_read:
+	conn->read_sni = true;
+}
+
+/*
  * accept new connections from clients.
  */
 static int do_accept(int lfd)
@@ -349,6 +384,8 @@ static int do_accept(int lfd)
 	conn->fd = fd;
 	conn->other = NULL;
 	conn->proxy_status = UNCONNECTED;
+	conn->read_sni = false;
+	conn->dst_host[0] = '\0';
 
 	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
 	if (err == -1) {
@@ -405,19 +442,19 @@ static void do_proxy(const struct addrinfo *proxy)
 				continue;
 			}
 
-			if (!other) {
+			if (conn->type == SPROTLY_PEER && !conn->read_sni) {
+				read_sni(conn);
+				if (!conn->read_sni)
+					continue;
 				other = do_open_conn(proxy, conn);
 				if (!other) {
 					set_conn_close(&close_list, conn);
 					continue;
 				}
-			}
-
-			if (conn->type == SPROTLY_PEER &&
-			    conn->proxy_status != CONNECTED) {
 				read_from_sock(conn->fd, &conn->buf);
 				continue;
 			} else if (conn->type == SPROTLY_PROXY &&
+				   conn->other->read_sni &&
 				   other->proxy_status != CONNECTED) {
 				proxy_handshake(conn);
 				if (other->proxy_status != CONNECTED)

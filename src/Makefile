@@ -14,7 +14,7 @@ LIBS	+= -lseccomp
 CFLAGS	+= -D_HAVE_LIBSECCOMP
 endif
 
-objects = sprotly.o proxy.o sprotly-seccomp.o
+objects = sprotly.o proxy.o sprotly-seccomp.o tls_sni.o
 
 sprotly: $(objects)
 	@echo -e "  LNK\t$@"
@@ -29,6 +29,10 @@ proxy.o: proxy.c
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
 sprotly-seccomp.o: sprotly-seccomp.c
+	@echo -e "  CC\t$@"
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+tls_sni.o: tls_sni.c
 	@echo -e "  CC\t$@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 

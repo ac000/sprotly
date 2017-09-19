@@ -25,6 +25,8 @@
 
 #include <libac.h>
 
+#define FQDN_MAX	255
+
 #define LOG_PATH	"/var/log/sprotly"
 #define ACCESS_LOG	"access_log"
 #define ERROR_LOG	"error_log"
