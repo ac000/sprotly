@@ -84,6 +84,8 @@ struct conn {
 	struct conn *other;
 	struct buffer buf;
 
+	u16 src_port;
+	u16 dst_port;
 	char src_addr[INET6_ADDRSTRLEN];
 	char dst_addr[INET6_ADDRSTRLEN];
 	char dst_host[FQDN_MAX + 1];
@@ -211,8 +213,10 @@ static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
 
 static void check_proxy_connect(struct conn *conn)
 {
+	bool ipv6 = strchr(conn->other->src_addr, ':');
 	char buf[PIPE_SIZE];
 	ssize_t bytes_read;
+	extern bool use_sni;
 
 	bytes_read = recv(conn->fd, &buf, PIPE_SIZE, 0);
 	if (bytes_read == -1) {
@@ -221,6 +225,12 @@ static void check_proxy_connect(struct conn *conn)
 	}
 
 	conn->other->proxy_status = CONNECTED;
+
+	logit("Proxying %s%s%s:%hu->%s%s%s%s:%hu\n", ipv6 ? "[" : "",
+			conn->other->src_addr, ipv6 ? "]" : "",
+			conn->other->src_port, conn->other->dst_host,
+			(ipv6 || use_sni) ? "[" : "", conn->other->dst_addr,
+			(ipv6 || use_sni) ? "]" : "", conn->other->dst_port);
 }
 
 /*
@@ -352,7 +362,6 @@ static int do_accept(int lfd)
 {
 	int fd;
 	int err;
-	u16 src_port;
 	bool ipv6;
 	struct conn *conn;
 	struct epoll_event ev;
@@ -372,13 +381,15 @@ static int do_accept(int lfd)
 		return 0;
 	}
 	ac_net_inet_ntop(&ss, conn->src_addr, INET6_ADDRSTRLEN);
-	src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
+	conn->src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
 	/* Get the original destination IP address */
 	ipv6 = ss.ss_family == AF_INET6;
 	getsockopt(fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP,
 			ipv6 ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
 			(struct sockaddr *)&ss, &addrlen);
+	ac_net_inet_ntop(&ss, conn->dst_addr, INET6_ADDRSTRLEN);
+	conn->dst_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
 	conn->type = SPROTLY_PEER;
 	conn->fd = fd;
@@ -399,12 +410,6 @@ static int do_accept(int lfd)
 	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 	ev.data.ptr = (void *)conn;
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
-
-	ac_net_inet_ntop(&ss, conn->dst_addr, INET6_ADDRSTRLEN);
-	logit("Proxying %s%s%s:%hu->%s%s%s:%hu\n", ipv6 ? "[" : "",
-			conn->src_addr, ipv6 ? "]" : "", src_port,
-			ipv6 ? "[" : "", conn->dst_addr, ipv6 ? "]" : "",
-			ac_net_port_from_sa((struct sockaddr *)&ss));
 
 	return 0;
 }
