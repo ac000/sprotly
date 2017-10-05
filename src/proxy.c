@@ -90,12 +90,16 @@ struct conn {
 	char dst_addr[INET6_ADDRSTRLEN];
 	char dst_host[FQDN_MAX + 1];
 
+	u64 bytes_tx;
+	u64 bytes_rx;
+
 	bool read_sni;
 };
 
 static int epollfd;
 extern int access_log_fd;
 extern int error_log_fd;
+extern bool use_sni;
 extern ac_slist_t *listen_fds;
 
 static void reopen_logs(void)
@@ -135,16 +139,16 @@ static void handle_signals(struct conn *conn)
 /*
  * Moves data from the pipe to the socket
  */
-static bool write_to_sock(int dst_fd, struct buffer *buf)
+static bool write_to_sock(struct conn *dst, struct conn *src)
 {
-	while (buf->bytes > 0) {
-		ssize_t bytes = buf->bytes;
+	while (src->buf.bytes > 0) {
+		ssize_t bytes = src->buf.bytes;
 		ssize_t bs;
 
 		if (bytes > PIPE_SIZE)
 			bytes = PIPE_SIZE;
 
-		bs = splice(buf->pipefds[0], NULL, dst_fd, NULL, bytes,
+		bs = splice(src->buf.pipefds[0], NULL, dst->fd, NULL, bytes,
 				SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 
 		if (bs == 0)
@@ -154,7 +158,9 @@ static bool write_to_sock(int dst_fd, struct buffer *buf)
 				break;
 			return false;
 		}
-		buf->bytes -= bs;
+		src->buf.bytes -= bs;
+		if (dst->type == SPROTLY_PEER)
+			dst->bytes_rx += bs;
 	}
 
 	return true;
@@ -163,14 +169,14 @@ static bool write_to_sock(int dst_fd, struct buffer *buf)
 /*
  * Moves data from the socket to the pipe
  */
-static bool read_from_sock(int src_fd, struct buffer *buf)
+static bool read_from_sock(struct conn *conn)
 {
 	for (;;) {
-		ssize_t bs = splice(src_fd, NULL, buf->pipefds[1], NULL,
+		ssize_t bs = splice(conn->fd, NULL, conn->buf.pipefds[1], NULL,
 				PIPE_SIZE, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 
 		if (bs > 0)
-			buf->bytes += bs;
+			conn->buf.bytes += bs;
 		if (bs == 0)
 			return false;
 		if (bs < 0) {
@@ -178,6 +184,8 @@ static bool read_from_sock(int src_fd, struct buffer *buf)
 				return true;
 			return false;
 		}
+		if (conn->type == SPROTLY_PEER)
+                        conn->bytes_tx += bs;
 	}
 
 	return true;
@@ -186,10 +194,23 @@ static bool read_from_sock(int src_fd, struct buffer *buf)
 static void close_conn(void *data, void *user_data __always_unused)
 {
 	struct conn *conn = (struct conn *)data;
+	bool ipv6;
 
 	close(conn->buf.pipefds[0]);
 	close(conn->buf.pipefds[1]);
 	close(conn->fd);
+
+	if (conn->type != SPROTLY_PEER)
+		return;
+
+	ipv6 = strchr(conn->src_addr, ':');
+	logit("Closed %s%s%s:%hu->%s%s%s%s:%hu, bytes tx/rx %" PRIu64 "/%"
+			PRIu64 "\n", ipv6 ? "[" : "",
+			conn->src_addr, ipv6 ? "]" : "",
+			conn->src_port, conn->dst_host,
+			(ipv6 || use_sni) ? "[" : "", conn->dst_addr,
+			(ipv6 || use_sni) ? "]" : "", conn->dst_port,
+			conn->bytes_tx, conn->bytes_rx);
 }
 
 static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
@@ -216,7 +237,6 @@ static void check_proxy_connect(struct conn *conn)
 	bool ipv6 = strchr(conn->other->src_addr, ':');
 	char buf[PIPE_SIZE];
 	ssize_t bytes_read;
-	extern bool use_sni;
 
 	bytes_read = recv(conn->fd, &buf, PIPE_SIZE, 0);
 	if (bytes_read == -1) {
@@ -397,6 +417,8 @@ static int do_accept(int lfd)
 	conn->proxy_status = UNCONNECTED;
 	conn->read_sni = false;
 	conn->dst_host[0] = '\0';
+	conn->bytes_tx = 0;
+	conn->bytes_rx = 0;
 
 	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
 	if (err == -1) {
@@ -456,7 +478,7 @@ static void do_proxy(const struct addrinfo *proxy)
 					set_conn_close(&close_list, conn);
 					continue;
 				}
-				read_from_sock(conn->fd, &conn->buf);
+				read_from_sock(conn);
 				continue;
 			} else if (conn->type == SPROTLY_PROXY &&
 				   conn->other->read_sni &&
@@ -470,13 +492,13 @@ static void do_proxy(const struct addrinfo *proxy)
 				bool from;
 				bool to;
 
-				from = read_from_sock(conn->fd, &conn->buf);
-				to = write_to_sock(other->fd, &conn->buf);
+				from = read_from_sock(conn);
+				to = write_to_sock(other, conn);
 				if (!from || !to)
 					set_conn_close(&close_list, conn);
 
-				from = read_from_sock(other->fd, &other->buf);
-				to = write_to_sock(conn->fd, &other->buf);
+				from = read_from_sock(other);
+				to = write_to_sock(conn, other);
 				if (!from || !to)
 					set_conn_close(&close_list, conn);
 			}
