@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <time.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <pwd.h>
@@ -79,6 +80,8 @@ struct buffer {
 struct conn {
 	int type;
 	int proxy_status;
+
+	struct timespec start;
 
 	int fd;
 	struct conn *other;
@@ -194,6 +197,9 @@ static bool read_from_sock(struct conn *conn)
 static void close_conn(void *data, void *user_data __always_unused)
 {
 	struct conn *conn = (struct conn *)data;
+	struct timespec end;
+	struct timespec delta;
+	double et;
 	bool ipv6;
 
 	close(conn->buf.pipefds[0]);
@@ -203,14 +209,17 @@ static void close_conn(void *data, void *user_data __always_unused)
 	if (conn->type != SPROTLY_PEER)
 		return;
 
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	et = ac_time_tspec_diff(&delta, &end, &conn->start);
+
 	ipv6 = strchr(conn->src_addr, ':');
 	logit("Closed %s%s%s:%hu->%s%s%s%s:%hu, bytes tx/rx %" PRIu64 "/%"
-			PRIu64 "\n", ipv6 ? "[" : "",
+			PRIu64 ", %.0fms\n", ipv6 ? "[" : "",
 			conn->src_addr, ipv6 ? "]" : "",
 			conn->src_port, conn->dst_host,
 			(ipv6 || use_sni) ? "[" : "", conn->dst_addr,
 			(ipv6 || use_sni) ? "]" : "", conn->dst_port,
-			conn->bytes_tx, conn->bytes_rx);
+			conn->bytes_tx, conn->bytes_rx, et*1000.0);
 }
 
 static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
@@ -400,6 +409,8 @@ static int do_accept(int lfd)
 		logerr("malloc");
 		return 0;
 	}
+	clock_gettime(CLOCK_MONOTONIC, &conn->start);
+
 	ac_net_inet_ntop(&ss, conn->src_addr, INET6_ADDRSTRLEN);
 	conn->src_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 

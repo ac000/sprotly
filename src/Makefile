@@ -6,6 +6,19 @@ LDFLAGS	= -Wl,-z,relro -Wl,-z,now -pie
 LIBS	= -lac
 INCS	=
 
+GLIBC_MAJOR     := $(shell ldd --version | grep -Eo '[0-9]+\.[0-9]+' | \
+                           cut -d . -f 1)
+GLIBC_MINOR	:= $(shell ldd --version | grep -Eo '[0-9]+\.[0-9]+' | \
+                           cut -d . -f 2)
+GLIBC_VER_2_18+	:= $(shell test $(GLIBC_MAJOR) -ge 2 && \
+                           test $(GLIBC_MINOR) -ge 17 && \
+                           echo 1)
+
+ifneq "$(GLIBC_VER_2_18+)" "1"
+# clock_* functions need linking against -lrt in glibc < 2.17
+LIBS += -lrt
+endif
+
 ifeq (${SPROTLY_SECCOMP}, 0)
 # Don't build with seccomp support
 CFLAGS  +=
