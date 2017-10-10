@@ -15,7 +15,7 @@ port that sprotly is listening on e.g
 
     # ip6tables -t nat -A PREROUTING -p tcp -m tcp --dport 443 -j REDIRECT --to-ports 3129
     # iptables -t nat -A PREROUTING -p tcp -m tcp --dport 443 -j REDIRECT --to-ports 3129
-    # sprotly -l localhost:3129 -p :9443
+    # sprotly -S -l localhost:3129 -p :9443
 
 Thus any traffic destined for port 443 is redirected to port 3129 where
 sprotly turns the standard requests into CONNECT's as squid would be
@@ -100,7 +100,7 @@ client requests which have been redirected by the above ip{6}tables rules.
 
 -S is used to tell sprotly to try and extract the requested host name from the
 TLS SNI field from the 'Client Hello' message, for use in the *CONNECT*
-requests. If it there isn't one it will fall back to using the IP address as
+requests. If there isn't one it will fall back to using the IP address as
 retrieved from the network stack.
 
 It will then send the *CONNECT* requests to the proxy running on *::1* or
