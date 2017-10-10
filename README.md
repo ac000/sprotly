@@ -72,23 +72,23 @@ For sprotly
 sprotly has no configuration file and has only a few options
 
     $ ./sprotly -h
-    Usage: sprotly [-D] [-S] <-l [host]:port[,...]> <-p [proxy]:port> [-v] [-h]
+    Usage: sprotly [-D] <-l [host]:port[,...]> <-p [proxy]:port> [-s] [-v] [-h]
 
       -D      - Run in debug mode. Log goes to terminal and runs in the
                  foreground.
-      -S      - Enable TLS SNI extraction.
       -l      - Listens on the optionally specified host/address(es) and
                  port(s). If no host is specified uses the unspecified address
                  (::, 0.0.0.0). Listens on both IPv6 and IPv4.
       -p      - The optional host/address of the proxy and port to send
                  requests to. If the host is unspecified uses localhost. Will
                  try IPv6 first then IPv4.
+      -s      - Disable TLS SNI extraction.
       -v      - Display the version.
       -h      - Display this text.
 
     Example -
 
-        sprotly -S -l localhost:3129 -p :9443
+        sprotly -l localhost:3129 -p :9443
 
 *-l* and *-p* are the only required options. And the example shown is generally
 how you'd want to run it.
@@ -98,13 +98,15 @@ how you'd want to run it.
 This will tell sprotly to listen on port *3129* on *::1* and *127.0.0.1* for
 client requests which have been redirected by the above ip{6}tables rules.
 
--S is used to tell sprotly to try and extract the requested host name from the
-TLS SNI field from the 'Client Hello' message, for use in the *CONNECT*
+It will then send the *CONNECT* requests to the proxy running on *::1* or
+*127.0.0.1* on port *9443*.
+
+By default sprotly will try to extract the requested hostname as given in the
+TLS SNI field from the 'Client Hello' message and use this in the *CONNECT*
 requests. If there isn't one it will fall back to using the IP address as
 retrieved from the network stack.
 
-It will then send the *CONNECT* requests to the proxy running on *::1* or
-*127.0.0.1* on port *9443*.
+-s is used to tell sprotly not to do this and just use the IP address.
 
 
 ## Architecture

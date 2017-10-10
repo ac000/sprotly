@@ -49,7 +49,7 @@
 static char **rargv;
 
 bool debug;
-bool use_sni;
+bool use_sni = true;
 uid_t euid;
 
 int access_log_fd;
@@ -69,11 +69,10 @@ static volatile sig_atomic_t log_rotation;
 
 static void disp_usage(void)
 {
-	fprintf(stderr, "Usage: sprotly [-D] [-S] <-l [host]:port[,[host]:port,...]> <-p [proxy]:port> [-h]\n\n");
+	fprintf(stderr, "Usage: sprotly [-D] <-l [host]:port[,[host]:port,...]> <-p [proxy]:port> [-s] [-v] [-h]\n\n");
 
 	fprintf(stderr, "  -D      - Run in debug mode. Log goes to terminal"
 		        " and runs in the foreground.\n");
-	fprintf(stderr, "  -S      - Enable TLS SNI extraction.\n");
 	fprintf(stderr, "  -l      - Listens on the optionally specified "
 			"host/address(es) and port(s).\n             If no "
 			"host is specified uses the unspecified address (::, "
@@ -83,11 +82,12 @@ static void disp_usage(void)
 			"and port to send requests\n             to. If the "
 			"host is unspecified uses localhost. Will try IPv6 "
 			"first\n             then IPv4.\n");
+	fprintf(stderr, "  -s      - Disable TLS SNI extraction.\n");
 	fprintf(stderr, "  -v      - Display the version.\n");
 	fprintf(stderr, "  -h      - Display this text.\n\n");
 
 	fprintf(stderr, "Example -\n\n");
-	fprintf(stderr, "    sprotly -S -l localhost:3129 -p :9443\n");
+	fprintf(stderr, "    sprotly -l localhost:3129 -p :9443\n");
 }
 
 static void set_proc_title(const char *title)
@@ -515,13 +515,13 @@ int main(int argc, char *argv[])
 	struct addrinfo *proxy;
 	struct sigaction action;
 
-	while ((optind = getopt(argc, argv, "vhDSl:p:")) != -1) {
+	while ((optind = getopt(argc, argv, "vhDsl:p:")) != -1) {
 		switch (optind) {
 		case 'D':
 			debug = true;
 			break;
-		case 'S':
-			use_sni = true;
+		case 's':
+			use_sni = false;
 			break;
 		case 'l':
 			listen_on = optarg;
