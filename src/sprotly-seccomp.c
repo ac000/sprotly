@@ -16,6 +16,7 @@
 
 #define _GNU_SOURCE
 
+#include <stdint.h>
 #include <sys/socket.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -116,7 +117,7 @@ void init_seccomp(void)
 				SOCK_STREAM | SOCK_NONBLOCK));
 	/* Restrict accept4(2) to the listen socket(s) */
 	while (list) {
-		int fd = ((struct listen_fd *)list->data)->fd;
+		int fd = (int)(intptr_t)list->data;
 
 		seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 1,
 				SCMP_A0(SCMP_CMP_EQ, fd));

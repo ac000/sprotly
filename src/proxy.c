@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <signal.h>
@@ -133,7 +134,7 @@ static void handle_signals(struct conn *conn)
 			close(error_log_fd);
 			close(epollfd);
 			free(conn);
-			ac_slist_destroy(&listen_fds, free);
+			ac_slist_destroy(&listen_fds, NULL);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -588,7 +589,7 @@ void init_proxy(const struct addrinfo *proxy)
 	while (list) {
 		conn = malloc(sizeof(struct conn));
 		conn->type = SPROTLY_LISTEN;
-		conn->fd = ((struct listen_fd *)list->data)->fd;
+		conn->fd = (int)(intptr_t)list->data;
 		conn->other = NULL;
 		ev.events = EPOLLIN;
 		ev.data.ptr = (void *)conn;

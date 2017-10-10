@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -421,7 +422,6 @@ static int bind_socket(const char *host, const char *port)
 		bool ipv6 = (resp->ai_family == AF_INET6) ? true : false;
 		socklen_t optlen = sizeof(optval);
 		char addrp[INET6_ADDRSTRLEN];
-		struct listen_fd *listen_fd;
 
 		lfd = socket(resp->ai_family,
 			     resp->ai_socktype | SOCK_NONBLOCK,
@@ -446,9 +446,7 @@ static int bind_socket(const char *host, const char *port)
 		logit("Listening on %s%s%s:%s\n", ipv6 ? "[" : "", addrp,
 				ipv6 ? "]" : "", port);
 
-		listen_fd = malloc(sizeof(struct listen_fd));
-		listen_fd->fd = lfd;
-		ac_slist_add(&listen_fds, listen_fd);
+		ac_slist_add(&listen_fds, (void *)(intptr_t)lfd);
 		listener = true;
 	}
 	freeaddrinfo(res);
@@ -668,7 +666,7 @@ int main(int argc, char *argv[])
 	}
 
 	freeaddrinfo(proxy);
-	ac_slist_destroy(&listen_fds, free);
+	ac_slist_destroy(&listen_fds, NULL);
 	close(access_log_fd);
 	close(error_log_fd);
 	unlink_pid();

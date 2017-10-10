@@ -17,10 +17,6 @@
 #ifndef _PROXY_H_
 #define _PROXY_H_
 
-struct listen_fd {
-	int fd;
-};
-
 void init_proxy(const struct addrinfo *proxy);
 
 #endif /* _PROXY_H_ */
