@@ -27,25 +27,14 @@ LIBS	+= -lseccomp
 CFLAGS	+= -D_HAVE_LIBSECCOMP
 endif
 
-objects = sprotly.o proxy.o sprotly-seccomp.o tls_sni.o
+sources =	$(wildcard *.c)
+objects =	$(sources:.c=.o)
 
 sprotly: $(objects)
 	@echo -e "  LNK\t$@"
-	@$(CC) $(LDFLAGS) -o $@ $(objects) ${LIBS}
+	@$(CC) $(LDFLAGS) -o $@ $(objects) $(LIBS)
 
-sprotly.o: sprotly.c
-	@echo -e "  CC\t$@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
-
-proxy.o: proxy.c
-	@echo -e "  CC\t$@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
-
-sprotly-seccomp.o: sprotly-seccomp.c
-	@echo -e "  CC\t$@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
-
-tls_sni.o: tls_sni.c
+$(objects): %.o: %.c
 	@echo -e "  CC\t$@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
