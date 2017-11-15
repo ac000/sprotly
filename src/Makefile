@@ -2,7 +2,7 @@ SPROTLY_VERSION = $(shell git describe --dirty --always)
 
 CC	= gcc
 CFLAGS	= -Wall -Wextra -std=c99 -O2 -g -Wp,-D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -fPIC -DSPROTLY_VERSION='"${SPROTLY_VERSION}"'
-LDFLAGS	= -Wl,-z,relro -Wl,-z,now -pie
+LDFLAGS	= -Wl,-z,relro,-z,now,--as-needed -pie
 LIBS	= -lac
 INCS	=
 
