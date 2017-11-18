@@ -7,8 +7,8 @@ sprotly is a tool to sit in front of a proxy such as squid and forward https
 client requests to the proxy converting them into *CONNECT*'s.
 
 This would be used for cases where you want to be able to perform some action
-on https requests based purely on destination IP address within squid and
-don't want them run through SSLBump.
+on https requests based purely on destination within squid and don't want them
+run through SSLBump.
 
 This is done by using an iptables rule to redirect port 443 traffic to a
 port that sprotly is listening on e.g
