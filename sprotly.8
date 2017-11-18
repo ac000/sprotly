@@ -1,0 +1,62 @@
+.TH SPROTLY 8 "2017-11-18" "" "System Administration"
+.SH NAME
+sprotly - Simple transparent https proxy forwarder using \fBsplice(2)\fR.
+
+.SH SYNOPSIS
+.B sprotly
+[-D] <-l [host]:port[,[host]:port,...]> <-p [proxy]:port> [-s] [-v] [-h]
+
+.SH DESCRIPTION
+
+sprotly is a tool to sit in front of a proxy such as squid and forward https
+client requests to the proxy converting them into \fBCONNECT\fRs.
+
+This would be used for cases where you want to be able to perform some action
+on https requests based purely on destination within squid and don't want them
+run through SSLBump.
+
+.SH OPTIONS
+.TP
+.BR -D
+Enable debug mode.
+.TP
+.BR -l\ [\fIhost\fR]:\fIport\fR[,[\fIhost\fR]:\fIport\fR,...]
+Specify a comma separated list of host:port pairs that sprotly should listen
+on. The host part is optional and IPv6 addresses should be put in [].
+.TP
+.BR -p\ [\fIproxy\fR]:\fIport\fR
+Specifies the proxy to connect to. Again the host is optional and IPv6
+addresses should be placed inside []'s.
+.TP
+.BR -s
+Disable TLS SNI extraction.
+.TP
+.BR -v
+Display the version.
+.TP
+.BR -h
+Display the help text.
+
+.SH EXAMPLES
+The most basic usage would be
+
+.RS
+sprotly -l :3129 -p :9443
+.RE
+
+To start sprotly listening on port 3129 at 127.0.0.1 & ::1 and to connect to
+the proxy on ::1 (or 127.0.0.1) on port 9443.
+
+.SH NOTES
+.SS seccomp
+sprotly can optionally make use of seccomp on Linux via libseccomp if it is
+installed. This check is made at build time and also run-time to check for
+kernel support.
+
+.SS SOURCE
+https://github.com/ac000/sprotly
+
+.SS LICENSE
+GNU GPL v2.0. See COPYING.
+
+See the README.md for more details.
