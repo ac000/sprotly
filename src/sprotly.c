@@ -446,7 +446,7 @@ static int bind_socket(const char *host, const char *port)
 		logit("Listening on %s%s%s:%s\n", ipv6 ? "[" : "", addrp,
 				ipv6 ? "]" : "", port);
 
-		ac_slist_add(&listen_fds, (void *)(intptr_t)lfd);
+		ac_slist_add(&listen_fds, AC_LONG_TO_PTR(lfd));
 		listener = true;
 	}
 	freeaddrinfo(res);

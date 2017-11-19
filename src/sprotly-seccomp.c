@@ -117,7 +117,7 @@ void init_seccomp(void)
 				SOCK_STREAM | SOCK_NONBLOCK));
 	/* Restrict accept4(2) to the listen socket(s) */
 	while (list) {
-		int fd = (int)(intptr_t)list->data;
+		int fd = AC_PTR_TO_LONG(list->data);
 
 		seccomp_rule_add(sec_ctx, SCMP_ACT_ALLOW, SCMP_SYS(accept4), 1,
 				SCMP_A0(SCMP_CMP_EQ, fd));

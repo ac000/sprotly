@@ -589,7 +589,7 @@ void init_proxy(const struct addrinfo *proxy)
 	while (list) {
 		conn = malloc(sizeof(struct conn));
 		conn->type = SPROTLY_LISTEN;
-		conn->fd = (int)(intptr_t)list->data;
+		conn->fd = AC_PTR_TO_LONG(list->data);
 		conn->other = NULL;
 		ev.events = EPOLLIN;
 		ev.data.ptr = (void *)conn;
