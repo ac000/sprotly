@@ -156,8 +156,10 @@ libseccomp if you have it installed.
 ## License
 
 sprotly is licensed under the GNU General Public License version 2. See
-*COPYING*.
+*GPL-2.0*.
 
+src/tls\_sni.[ch] are licenced under the BSD 2-clause "Simplified" License, see
+*BSD-2-Clause*.
 
 ## Contributing
 

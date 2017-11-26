@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 /*
  * sprotly.c - Main program, https transparent proxy
  *
