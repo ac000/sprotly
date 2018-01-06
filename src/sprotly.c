@@ -615,18 +615,18 @@ int main(int argc, char *argv[])
 		struct rlimit cur;
 
 		getrlimit(RLIMIT_NOFILE, &cur);
-		if (cur.rlim_max < NOFILE_LIMIT) {
+		if (cur.rlim_cur < NOFILE_LIMIT) {
 			struct rlimit new = { .rlim_cur = NOFILE_LIMIT,
 					      .rlim_max = NOFILE_LIMIT };
 
 			err = setrlimit(RLIMIT_NOFILE, &new);
 			if (err)
 				logit("Failed to raise RLIMIT_NOFILE from "
-						"%ld -> %ld\n", cur.rlim_max,
-						new.rlim_max);
+						"%ld -> %ld\n", cur.rlim_cur,
+						new.rlim_cur);
 			else
 				logit("Raised RLIMIT_NOFILE from %ld -> %ld\n",
-						cur.rlim_max, new.rlim_max);
+						cur.rlim_cur, new.rlim_cur);
 		}
 	}
 
