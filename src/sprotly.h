@@ -36,15 +36,23 @@
 #define logit(fmt, ...) \
 	do { \
 		int len; \
-		time_t secs = time(NULL); \
-		struct tm *tm = localtime(&secs); \
-		char tsbuf[32]; \
 		char logbuf[256]; \
 		ssize_t bytes_wrote __always_unused; \
 		\
-		strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm); \
-		len = snprintf(logbuf, sizeof(logbuf), "[%s] %d: " fmt, \
-			       tsbuf, getpid(), ##__VA_ARGS__); \
+		if (fmt[0] == ' ') { \
+			/* continuation line */ \
+			len = snprintf(logbuf, sizeof(logbuf), fmt, \
+					##__VA_ARGS__); \
+		} else { \
+			time_t secs = time(NULL); \
+			struct tm *tm = localtime(&secs); \
+			char tsbuf[32]; \
+			\
+			strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm); \
+			len = snprintf(logbuf, sizeof(logbuf), \
+					"[%s] %d: " fmt, tsbuf, getpid(), \
+					##__VA_ARGS__); \
+		} \
 		bytes_wrote = write(access_log_fd, logbuf, len); \
 	} while (0)
 

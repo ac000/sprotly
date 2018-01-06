@@ -621,12 +621,13 @@ int main(int argc, char *argv[])
 
 			err = setrlimit(RLIMIT_NOFILE, &new);
 			if (err)
-				logit("Failed to raise RLIMIT_NOFILE from "
-						"%ld -> %ld\n", cur.rlim_cur,
-						new.rlim_cur);
+				logit("Failed to raise");
 			else
-				logit("Raised RLIMIT_NOFILE from %ld -> %ld\n",
-						cur.rlim_cur, new.rlim_cur);
+				logit("Raised");
+
+			/* continuation line */
+			logit(" RLIMIT_NOFILE from %ld -> %ld\n",
+					cur.rlim_cur, new.rlim_cur);
 		}
 	}
 
