@@ -36,14 +36,19 @@ endif
 sources =	$(wildcard *.c)
 objects =	$(sources:.c=.o)
 
+v = @
+ifeq ($V,1)
+	v =
+endif
+
 sprotly: $(objects)
 	@echo -e "  LNK\t$@"
-	@$(CC) $(LDFLAGS) -o $@ $(objects) $(LIBS)
+	$(v)$(CC) $(LDFLAGS) -o $@ $(objects) $(LIBS)
 
 %.o: %.c
 %.o: %.c $(DEPDIR)/%.d
 	@echo -e "  CC\t$@"
-	@$(CC) $(DEPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(v)$(CC) $(DEPFLAGS) $(CFLAGS) -c -o $@ $<
 
 $(DEPDIR)/%.d: ;
 .PRECIOUS: $(DEPDIR)/%.d
@@ -52,6 +57,6 @@ include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(sources))))
 
 .PHONY: clean
 clean:
-	rm -f sprotly *.o
-	rm -f $(DEPDIR)/*
-	rmdir $(DEPDIR)
+	$(v)rm -f sprotly *.o
+	$(v)rm -f $(DEPDIR)/*
+	$(v)rmdir $(DEPDIR)
