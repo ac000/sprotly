@@ -1,10 +1,16 @@
 SPROTLY_VERSION = $(shell git describe --dirty --always)
 
+DEPDIR  := .d
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+
 CC	= gcc
 CFLAGS	= -Wall -Wextra -std=c99 -O2 -g -Wp,-D_FORTIFY_SOURCE=2 -D_FILE_OFFSET_BITS=64 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -fPIC -DSPROTLY_VERSION='"${SPROTLY_VERSION}"'
 LDFLAGS	= -Wl,-z,relro,-z,now,--as-needed -pie
 LIBS	= -lac
 INCS	=
+
+POSTCOMPILE	 = @mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d && touch $@
 
 GLIBC_MAJOR     := $(shell ldd --version | grep -Eo '[0-9]+\.[0-9]+' | \
                            cut -d . -f 1)
@@ -34,9 +40,18 @@ sprotly: $(objects)
 	@echo -e "  LNK\t$@"
 	@$(CC) $(LDFLAGS) -o $@ $(objects) $(LIBS)
 
-$(objects): %.o: %.c
+%.o: %.c
+%.o: %.c $(DEPDIR)/%.d
 	@echo -e "  CC\t$@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(DEPFLAGS) $(CFLAGS) -c -o $@ $<
 
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
+
+include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(sources))))
+
+.PHONY: clean
 clean:
 	rm -f sprotly *.o
+	rm -f $(DEPDIR)/*
+	rmdir $(DEPDIR)
