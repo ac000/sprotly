@@ -161,11 +161,12 @@ sprotly is licensed under the GNU General Public License version 2. See
 src/tls\_sni.[ch] are licenced under the BSD 2-clause "Simplified" License, see
 *BSD-2-Clause*.
 
+
 ## Contributing
 
 Patches and/or pull requests should be emailed to the project maintainer
 
-    Andrew Clayton <andrew.clayton@securolytics.io>
+    Andrew Clayton <andrew@zeta.digital-domain.net>
 
 preferably using *git-send-email(1)* and *git-request-pull(1)*
 
