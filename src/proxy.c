@@ -6,6 +6,8 @@
  * Copyright (c) 2017		Securolytics, Inc.
  *				Andrew Clayton <andrew.clayton@securolytics.io>
  *
+ *		 2019		Andrew Clayton <andrew@digital-domain.net>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -187,7 +189,7 @@ static bool read_from_sock(struct conn *conn)
 			return false;
 		if (bs < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				return true;
+				break;
 			return false;
 		}
 		if (conn->type == SPROTLY_PEER)
