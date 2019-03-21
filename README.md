@@ -172,7 +172,7 @@ https://github.com/andikleen/eproxy
 
 Patches and/or pull requests should be emailed to the project maintainer
 
-    Andrew Clayton <andrew@zeta.digital-domain.net>
+    Andrew Clayton <andrew@digital-domain.net>
 
 preferably using *git-send-email(1)* and *git-request-pull(1)*
 
