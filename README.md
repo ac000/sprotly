@@ -162,6 +162,12 @@ src/tls\_sni.[ch] are licensed under the BSD 2-clause "Simplified" License, see
 *BSD-2-Clause*.
 
 
+## Credits
+
+It should be noted that sprotly was heavily influenced by Andi Kleen's eproxy
+https://github.com/andikleen/eproxy
+
+
 ## Contributing
 
 Patches and/or pull requests should be emailed to the project maintainer
