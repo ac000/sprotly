@@ -15,7 +15,7 @@ port that sprotly is listening on e.g
 
     # ip6tables -t nat -A PREROUTING -p tcp -m tcp --dport 443 -j REDIRECT --to-ports 3129
     # iptables -t nat -A PREROUTING -p tcp -m tcp --dport 443 -j REDIRECT --to-ports 3129
-    # sprotly -S -l localhost:3129 -p :9443
+    # sprotly -l localhost:3129 -p :9443
 
 Thus any traffic destined for port 443 is redirected to port 3129 where
 sprotly turns the standard requests into CONNECT's as squid would be
