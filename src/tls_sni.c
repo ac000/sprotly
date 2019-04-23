@@ -34,8 +34,6 @@
 
 #include <string.h>		/* strncpy() */
 
-#include <libac.h>
-
 #include "sprotly.h"
 
 #define TLS_HEADER_LEN 5
