@@ -118,7 +118,7 @@ static void set_proc_title(const char *title)
 			size = strlen(environ[i]) + 1;
 			argv_last = environ[i] + size;
 
-			strncpy(p, environ[i], size);
+			snprintf(p, size, "%s", environ[i]);
 			environ[i] = p;
 			p += size;
 		}
