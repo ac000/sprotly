@@ -33,8 +33,6 @@
 #include "sprotly.h"
 #include "proxy.h"
 
-extern int access_log_fd;
-extern int error_log_fd;
 extern const char *access_log;
 extern const char *error_log;
 extern const char *sprotly_pid_file;

@@ -6,6 +6,8 @@
  * Copyright (c) 2017		Securolytics, Inc.
  * 				Andrew Clayton <andrew.clayton@securolytics.io>
  *
+ *		 2019		Andrew clayton <andrew@digital-domain.net>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -19,11 +21,16 @@
 #ifndef _SPROTLY_H_
 #define _SPROTLY_H_
 
+#define _GNU_SOURCE			/* vasprintf(3) */
+#define _POSIX_C_SOURCE 200809L		/* dprintf(3) */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 
 #include <libac.h>
 
@@ -33,45 +40,50 @@
 #define ACCESS_LOG	"access_log"
 #define ERROR_LOG	"error_log"
 
-#define logit(fmt, ...) \
-	do { \
-		int len; \
-		char logbuf[256]; \
-		ssize_t bytes_wrote __always_unused; \
-		\
-		if (fmt[0] == ' ') { \
-			/* continuation line */ \
-			len = snprintf(logbuf, sizeof(logbuf), fmt, \
-					##__VA_ARGS__); \
-		} else { \
-			time_t secs = time(NULL); \
-			struct tm *tm = localtime(&secs); \
-			char tsbuf[32]; \
-			\
-			strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm); \
-			len = snprintf(logbuf, sizeof(logbuf), \
-					"[%s] %d: " fmt, tsbuf, getpid(), \
-					##__VA_ARGS__); \
-		} \
-		bytes_wrote = write(access_log_fd, logbuf, len); \
-	} while (0)
+extern int access_log_fd;
+extern int error_log_fd;
 
-#define logerr(what) \
-	do { \
-		int len; \
-		time_t secs = time(NULL); \
-		struct tm *tm = localtime(&secs); \
-		char tsbuf[32]; \
-		char logbuf[256]; \
-		ssize_t bytes_wrote __always_unused; \
-		\
-		strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm); \
-		len = snprintf(logbuf, sizeof(logbuf), "[%s] %d %s %s%s%s\n", \
-			       tsbuf, getpid(), __func__, what, \
-			       (errno) ? ": " : "", \
-			       (errno) ? strerror(errno) : ""); \
-		bytes_wrote = write(error_log_fd, logbuf, len); \
-	} while (0)
+static inline void logit(const char *fmt, ...)
+{
+	int len;
+	char *logbuf;
+	va_list ap;
+
+	va_start(ap, fmt);
+	len = vasprintf(&logbuf, fmt, ap);
+	if (len == -1) {
+		va_end(ap);
+		return;
+	}
+	va_end(ap);
+
+	if (logbuf[0] == ' ') {
+		/* continuation line */
+		dprintf(access_log_fd, "%s", logbuf);
+	} else {
+		time_t secs = time(NULL);
+		struct tm *tm = localtime(&secs);
+		char tsbuf[32];
+
+		strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm);
+		dprintf(access_log_fd, "[%s] %d: %s", tsbuf, getpid(), logbuf);
+	}
+
+	free(logbuf);
+}
+
+static __maybe_unused void __logerr(const char *func, const char *what)
+{
+	time_t secs = time(NULL);
+	struct tm *tm = localtime(&secs);
+	char tsbuf[32];
+
+	strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm);
+	dprintf(error_log_fd, "[%s] %d %s %s%s%s\n", tsbuf, getpid(), func,
+		what, (errno) ? ": " : "", (errno) ? strerror(errno) : "");
+}
+
+#define logerr(what)	__logerr(__func__, what)
 
 #define err_exit(func) \
 	do { \

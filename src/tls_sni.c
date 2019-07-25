@@ -32,6 +32,8 @@
  * TLS handshake and RFC4366.
  */
 
+#define _GNU_SOURCE
+
 #include <string.h>		/* strncpy() */
 
 #include "sprotly.h"
@@ -43,9 +45,6 @@
 #ifndef MIN
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
-
-extern int access_log_fd;
-extern int error_log_fd;
 
 static void parse_server_name_extension(const char *data, size_t data_len,
 					char *hostname)

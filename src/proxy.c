@@ -105,8 +105,6 @@ struct conn {
 };
 
 static int epollfd;
-extern int access_log_fd;
-extern int error_log_fd;
 extern bool use_sni;
 extern ac_slist_t *listen_fds;
 
