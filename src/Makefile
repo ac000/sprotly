@@ -49,6 +49,7 @@ sprotly: $(objects)
 %.o: %.c $(DEPDIR)/%.d
 	@echo -e "  CC\t$@"
 	$(v)$(CC) $(DEPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(v)$(POSTCOMPILE)
 
 $(DEPDIR)/%.d: ;
 .PRECIOUS: $(DEPDIR)/%.d
