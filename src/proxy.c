@@ -373,7 +373,6 @@ static void read_sni(struct conn *conn)
 {
 	ssize_t bytes;
 	char buf[PIPE_SIZE];
-	extern bool use_sni;
 
 	if (!use_sni)
 		goto out_sni_read;
