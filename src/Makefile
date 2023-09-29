@@ -21,16 +21,16 @@ GLIBC_VER_2_18+	:= $(shell test $(GLIBC_MAJOR) -ge 2 && \
                            echo 1)
 
 ifneq "$(GLIBC_VER_2_18+)" "1"
-# clock_* functions need linking against -lrt in glibc < 2.17
-LIBS += -lrt
+	# clock_* functions need linking against -lrt in glibc < 2.17
+	LIBS += -lrt
 endif
 
 ifeq (${SPROTLY_SECCOMP}, 0)
-# Don't build with seccomp support
-CFLAGS  +=
+	# Don't build with seccomp support
+	CFLAGS  +=
 else ifeq ($(shell pkg-config --exists libseccomp && echo 1), 1)
-LIBS	+= -lseccomp
-CFLAGS	+= -D_HAVE_LIBSECCOMP
+	LIBS	+= -lseccomp
+	CFLAGS	+= -D_HAVE_LIBSECCOMP
 endif
 
 sources =	$(wildcard *.c)
