@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
 		access_log = LOG_PATH"/"ACCESS_LOG;
 		error_log = LOG_PATH"/"ERROR_LOG;
 
-		ac_fs_mkdir_p(LOG_PATH);
+		ac_fs_mkdir_p(-1, LOG_PATH, 0777);
 		/*
 		 * Setup a signal handler for SIGHUP for logfile rotation,
 		 * but not in debug mode as we're just using the console.
