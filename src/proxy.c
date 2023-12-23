@@ -101,7 +101,7 @@ struct conn {
 	u64 bytes_tx;
 	u64 bytes_rx;
 
-	bool read_sni;
+	bool done_sni;
 };
 
 static int epollfd;
@@ -383,7 +383,7 @@ static void read_sni(struct conn *conn)
 	parse_tls_header(buf, sizeof(buf), conn->dst_host);
 
 out_sni_read:
-	conn->read_sni = true;
+	conn->done_sni = true;
 }
 
 /*
@@ -428,7 +428,7 @@ static int do_accept(int lfd)
 	conn->fd = fd;
 	conn->other = NULL;
 	conn->proxy_status = UNCONNECTED;
-	conn->read_sni = false;
+	conn->done_sni = false;
 	conn->dst_host[0] = '\0';
 	conn->bytes_tx = 0;
 	conn->bytes_rx = 0;
@@ -482,9 +482,9 @@ static void do_proxy(const struct addrinfo *proxy)
 				continue;
 			}
 
-			if (conn->type == SPROTLY_PEER && !conn->read_sni) {
+			if (conn->type == SPROTLY_PEER && !conn->done_sni) {
 				read_sni(conn);
-				if (!conn->read_sni)
+				if (!conn->done_sni)
 					continue;
 				other = do_open_conn(proxy, conn);
 				if (!other) {
@@ -494,7 +494,7 @@ static void do_proxy(const struct addrinfo *proxy)
 				read_from_sock(conn);
 				continue;
 			} else if (conn->type == SPROTLY_PROXY &&
-				   conn->other->read_sni &&
+				   conn->other->done_sni &&
 				   other->proxy_status != CONNECTED) {
 				proxy_handshake(conn);
 				if (other->proxy_status != CONNECTED)
