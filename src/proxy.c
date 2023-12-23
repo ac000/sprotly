@@ -155,7 +155,7 @@ static bool write_to_sock(struct conn *dst, struct conn *src)
 			bytes = PIPE_SIZE;
 
 		bs = splice(src->buf.pipefds[0], NULL, dst->fd, NULL, bytes,
-				SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
+			    SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 
 		if (bs == 0)
 			break;
@@ -179,7 +179,8 @@ static bool read_from_sock(struct conn *conn)
 {
 	for (;;) {
 		ssize_t bs = splice(conn->fd, NULL, conn->buf.pipefds[1], NULL,
-				PIPE_SIZE, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
+				    PIPE_SIZE,
+				    SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 
 		if (bs > 0)
 			conn->buf.bytes += bs;
@@ -217,12 +218,12 @@ static void close_conn(void *data, void *user_data __always_unused)
 
 	ipv6 = strchr(conn->src_addr, ':');
 	logit("Closed %s%s%s:%hu->%s%s%s%s:%hu, bytes tx/rx %" PRIu64 "/%"
-			PRIu64 ", %.0fms\n", ipv6 ? "[" : "",
-			conn->src_addr, ipv6 ? "]" : "",
-			conn->src_port, conn->dst_host,
-			(ipv6 || use_sni) ? "[" : "", conn->dst_addr,
-			(ipv6 || use_sni) ? "]" : "", conn->dst_port,
-			conn->bytes_tx, conn->bytes_rx, et*1000.0);
+	      PRIu64 ", %.0fms\n", ipv6 ? "[" : "",
+	      conn->src_addr, ipv6 ? "]" : "",
+	      conn->src_port, conn->dst_host,
+	      (ipv6 || use_sni) ? "[" : "", conn->dst_addr,
+	      (ipv6 || use_sni) ? "]" : "", conn->dst_port,
+	      conn->bytes_tx, conn->bytes_rx, et*1000.0);
 }
 
 static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
@@ -259,10 +260,10 @@ static void check_proxy_connect(struct conn *conn)
 	conn->other->proxy_status = CONNECTED;
 
 	logit("Proxying %s%s%s:%hu->%s%s%s%s:%hu\n", ipv6 ? "[" : "",
-			conn->other->src_addr, ipv6 ? "]" : "",
-			conn->other->src_port, conn->other->dst_host,
-			(ipv6 || use_sni) ? "[" : "", conn->other->dst_addr,
-			(ipv6 || use_sni) ? "]" : "", conn->other->dst_port);
+	      conn->other->src_addr, ipv6 ? "]" : "",
+	      conn->other->src_port, conn->other->dst_host,
+	      (ipv6 || use_sni) ? "[" : "", conn->other->dst_addr,
+	      (ipv6 || use_sni) ? "]" : "", conn->other->dst_port);
 }
 
 /*
@@ -278,11 +279,11 @@ static void send_proxy_connect(struct conn *conn)
 	int len;
 
 	len = snprintf(buf, sizeof(buf), "CONNECT %s%s%s:443 HTTP/1.0\r\n\r\n",
-				ipv6 ? "[" : "",
-				strlen(conn->other->dst_host) ?
-					conn->other->dst_host :
-					conn->other->dst_addr,
-				ipv6 ? "]" : "");
+		       ipv6 ? "[" : "",
+		       strlen(conn->other->dst_host) ?
+		       conn->other->dst_host :
+		       conn->other->dst_addr,
+		       ipv6 ? "]" : "");
 	bytes_sent = send(conn->fd, buf, len, 0);
 	if (bytes_sent == -1) {
 		logerr("send");
@@ -419,8 +420,8 @@ static int do_accept(int lfd)
 	/* Get the original destination IP address */
 	ipv6 = ss.ss_family == AF_INET6;
 	getsockopt(fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP,
-			ipv6 ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
-			(struct sockaddr *)&ss, &addrlen);
+		   ipv6 ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
+		   (struct sockaddr *)&ss, &addrlen);
 	ac_net_inet_ntop(&ss, conn->dst_addr, INET6_ADDRSTRLEN);
 	conn->dst_port = ac_net_port_from_sa((struct sockaddr *)&ss);
 
@@ -581,7 +582,7 @@ void init_proxy(const struct addrinfo *proxy)
 			goto out_err;
 		}
 		logit("Worker switched to user %s:%s (%d:%d)\n", user, user,
-				pwd->pw_uid, pwd->pw_gid);
+		      pwd->pw_uid, pwd->pw_gid);
 	}
 
 	epollfd = epoll_create1(0);
