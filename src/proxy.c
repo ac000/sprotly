@@ -390,7 +390,7 @@ out_sni_read:
 /*
  * accept new connections from clients.
  */
-static int do_accept(int lfd)
+static void do_accept(int lfd)
 {
 	int fd;
 	int err;
@@ -400,17 +400,18 @@ static int do_accept(int lfd)
 	struct sockaddr_storage ss;
 	socklen_t addrlen = sizeof(ss);
 
+accept_again:
 	fd = accept4(lfd, (struct sockaddr *)&ss, &addrlen, SOCK_NONBLOCK);
 	if (fd == -1) {
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
 			logerr("accept4");
-		return -1;
+		return;
 	}
 	conn = malloc(sizeof(struct conn));
 	if (!conn) {
 		close(fd);
 		logerr("malloc");
-		return 0;
+		return;
 	}
 	clock_gettime(CLOCK_MONOTONIC, &conn->start);
 
@@ -439,7 +440,7 @@ static int do_accept(int lfd)
 		close(conn->fd);
 		free(conn);
 		logerr("pipe2");
-		return 0;
+		return;
 	};
 	conn->buf.bytes = 0;
 
@@ -447,7 +448,7 @@ static int do_accept(int lfd)
 	ev.data.ptr = (void *)conn;
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
 
-	return 0;
+	goto accept_again;
 }
 
 static void do_proxy(const struct addrinfo *proxy)
@@ -465,13 +466,7 @@ static void do_proxy(const struct addrinfo *proxy)
 			struct conn *other = conn->other;
 
 			if (conn->type == SPROTLY_LISTEN) {
-				for (;;) {
-					int ret;
-
-					ret = do_accept(conn->fd);
-					if (ret == -1)
-						break;
-				}
+				do_accept(conn->fd);
 				continue;
 			} else if (conn->type == SPROTLY_SIGNAL) {
 				handle_signals(conn);
