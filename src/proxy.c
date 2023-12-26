@@ -6,7 +6,7 @@
  * Copyright (c) 2017		Securolytics, Inc.
  *				Andrew Clayton <andrew.clayton@securolytics.io>
  *
- *		 2019		Andrew Clayton <andrew@digital-domain.net>
+ *		 2019, 2023	Andrew Clayton <andrew@digital-domain.net>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -39,6 +39,7 @@
 #include <sys/ioctl.h>
 #include <pwd.h>
 #include <grp.h>
+#include <pthread.h>
 
 #include <linux/if.h>
 #include <linux/netfilter_ipv4.h>
@@ -56,6 +57,8 @@
 
 #define MAX_EVENTS		 256
 #define PIPE_SIZE	       16384
+
+#define THREAD_STACK_SZ	  (8 * 1024)
 
 static const char * const event_type_str[] __maybe_unused = {
 	"SPROTLY_LISTEN",
@@ -92,6 +95,8 @@ struct conn {
 	struct conn *other;
 	struct buffer buf;
 
+	int epfd;
+
 	u16 src_port;
 	u16 dst_port;
 	char src_addr[INET6_ADDRSTRLEN];
@@ -100,6 +105,8 @@ struct conn {
 
 	u64 bytes_tx;
 	u64 bytes_rx;
+
+	const struct addrinfo *proxy;
 
 	bool done_sni;
 };
@@ -185,8 +192,6 @@ static bool read_from_sock(struct conn *conn)
 				    PIPE_SIZE,
 				    SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 
-		if (bs > 0)
-			conn->buf.bytes += bs;
 		if (bs == 0)
 			return false;
 		if (bs < 0) {
@@ -194,6 +199,7 @@ static bool read_from_sock(struct conn *conn)
 				break;
 			return false;
 		}
+		conn->buf.bytes += bs;
 		if (conn->type == SPROTLY_PEER)
                         conn->bytes_tx += bs;
 	}
@@ -242,10 +248,10 @@ static void set_conn_close(ac_slist_t **close_list, struct conn *conn)
 
 	if (conn->other) {
 		ac_slist_preadd(close_list, conn->other);
-		epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->other->fd, NULL);
+		epoll_ctl(conn->epfd, EPOLL_CTL_DEL, conn->other->fd, NULL);
 	}
 	ac_slist_preadd(close_list, conn);
-	epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->fd, NULL);
+	epoll_ctl(conn->epfd, EPOLL_CTL_DEL, conn->fd, NULL);
 }
 
 static void check_proxy_connect(struct conn *conn)
@@ -299,57 +305,59 @@ static void send_proxy_connect(struct conn *conn)
 /*
  * Initiate a connection to the proxy.
  */
-static struct conn *do_open_conn(const struct addrinfo *host,
-				 struct conn *other)
+static struct conn *do_open_conn(struct conn *conn)
 {
 	struct epoll_event ev;
-	struct conn *conn;
+	struct conn *proxy;
 	int ofd;
 	int err;
 
-	ofd = socket(host->ai_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	ofd = socket(conn->proxy->ai_family, SOCK_STREAM | O_NONBLOCK, 0);
 	if (ofd == -1) {
 		logerr("socket");
 		return NULL;
 	}
-	err = connect(ofd, host->ai_addr, host->ai_addrlen);
-	if (err == -1 && errno != EINPROGRESS) {
+	err = connect(ofd, conn->proxy->ai_addr, conn->proxy->ai_addrlen);
+	if (err && errno != EINPROGRESS) {
 		logerr("connect");
 		goto close_sock;
 	}
 
-	conn = malloc(sizeof(struct conn));
-	if (!conn) {
+	proxy = malloc(sizeof(struct conn));
+	if (!proxy) {
 		logerr("malloc");
 		goto close_sock;
 	}
-	conn->type = SPROTLY_PROXY;
-	conn->fd = ofd;
+	proxy->type = SPROTLY_PROXY;
+	proxy->fd = ofd;
 
 	/* These will always be nul terminated */
-	strcpy(conn->dst_addr, other->dst_addr);
-	strcpy(conn->src_addr, other->src_addr);
+	strcpy(proxy->dst_addr, conn->dst_addr);
+	strcpy(proxy->src_addr, conn->src_addr);
 
-	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
+	err = pipe2(proxy->buf.pipefds, O_NONBLOCK);
 	if (err == -1) {
-		free(conn);
+		free(proxy);
 		logerr("pipe2");
-		return NULL;
+		goto close_sock;
 	}
-	conn->buf.bytes = 0;
+	proxy->buf.bytes = 0;
 
-	conn->other = other;
-	other->other = conn;
+	proxy->other = conn;
+	conn->other = proxy;
+
+	proxy->epfd = conn->epfd;
 
 	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-	ev.data.ptr = (void *)conn;
-	epoll_ctl(epollfd, EPOLL_CTL_ADD, ofd, &ev);
+	ev.data.ptr = (void *)proxy;
+	epoll_ctl(proxy->epfd, EPOLL_CTL_ADD, ofd, &ev);
 
-	return other;
+	return proxy;
 
 close_sock:
 	if (ofd > -1)
 		close(ofd);
+
 	return NULL;
 }
 
@@ -390,18 +398,104 @@ out_sni_read:
 	conn->done_sni = true;
 }
 
+static void *handle_new_conn(void *arg)
+{
+	struct conn *conn = arg;
+	struct epoll_event nev;
+	struct epoll_event events[MAX_EVENTS];
+	ac_slist_t *close_list = NULL;
+	int worker_epfd;
+	int nfds;
+	int n;
+	int err;
+
+	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
+	if (err) {
+		close(conn->fd);
+		free(conn);
+		logerr("pipe2");
+		return NULL;
+	};
+	conn->buf.bytes = 0;
+
+	worker_epfd = epoll_create1(0);
+	conn->epfd = worker_epfd;
+
+	nev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+	nev.data.ptr = (void *)conn;
+	epoll_ctl(worker_epfd, EPOLL_CTL_ADD, conn->fd, &nev);
+
+epoll_again:
+	nfds = epoll_wait(worker_epfd, events, MAX_EVENTS, -1);
+	for (n = 0; n < nfds; n++) {
+		struct epoll_event *ev = &events[n];
+		struct conn *other;
+
+		conn = ev->data.ptr;
+		other = conn->other;
+
+		if (ev->events & (EPOLLERR | EPOLLHUP)) {
+			set_conn_close(&close_list, conn);
+			continue;
+		}
+
+		if (conn->type == SPROTLY_PEER && !conn->done_sni) {
+			read_sni(conn);
+			if (!conn->done_sni)
+				continue;
+			other = do_open_conn(conn);
+			if (!other) {
+				set_conn_close(&close_list, conn);
+				continue;
+			}
+			read_from_sock(conn);
+			continue;
+		} else if (conn->type == SPROTLY_PROXY &&
+			   conn->other->done_sni &&
+			   other->proxy_status != CONNECTED) {
+			proxy_handshake(conn);
+			if (other->proxy_status != CONNECTED)
+				continue;
+		}
+
+		if (ev->events & (EPOLLIN | EPOLLOUT)) {
+			bool from;
+			bool to;
+
+			from = read_from_sock(conn);
+			to = write_to_sock(other, conn);
+			if (!from || !to)
+				set_conn_close(&close_list, conn);
+
+			from = read_from_sock(other);
+			to = write_to_sock(conn, other);
+			if (!from || !to)
+				set_conn_close(&close_list, conn);
+		}
+	}
+	if (!close_list)
+		goto epoll_again;
+
+	ac_slist_foreach(close_list, close_conn, NULL);
+	ac_slist_destroy(&close_list, free);
+
+	close(worker_epfd);
+
+	return NULL;
+}
+
 /*
  * accept new connections from clients.
  */
-static void do_accept(int lfd)
+static void do_accept(int lfd, const struct addrinfo *proxy)
 {
 	int fd;
-	int err;
 	bool ipv6;
 	struct conn *conn;
-	struct epoll_event ev;
 	struct sockaddr_storage ss;
 	socklen_t addrlen = sizeof(ss);
+	pthread_t tid;
+	pthread_attr_t attr;
 
 accept_again:
 	fd = accept4(lfd, (struct sockaddr *)&ss, &addrlen, SOCK_NONBLOCK);
@@ -433,94 +527,43 @@ accept_again:
 	conn->fd = fd;
 	conn->other = NULL;
 	conn->proxy_status = UNCONNECTED;
+	conn->proxy = proxy;
 	conn->done_sni = false;
 	conn->dst_host[0] = '\0';
 	conn->bytes_tx = 0;
 	conn->bytes_rx = 0;
 
-	err = pipe2(conn->buf.pipefds, O_NONBLOCK);
-	if (err == -1) {
-		close(conn->fd);
-		free(conn);
-		logerr("pipe2");
-		return;
-	};
-	conn->buf.bytes = 0;
-
-	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-	ev.data.ptr = (void *)conn;
-	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, THREAD_STACK_SZ);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&tid, &attr, handle_new_conn, conn);
+	pthread_setname_np(tid, "sprotly: worker");
+	pthread_attr_destroy(&attr);
 
 	goto accept_again;
 }
 
 static void do_proxy(const struct addrinfo *proxy)
 {
-	for (;;) {
-		int n;
-		int nfds;
-		ac_slist_t *close_list = NULL;
-		struct epoll_event events[MAX_EVENTS];
+	int n;
+	int nfds;
+	struct epoll_event events[MAX_EVENTS];
 
-		nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
-		for (n = 0; n < nfds; n++) {
-			struct epoll_event *ev = &events[n];
-			struct conn *conn = ev->data.ptr;
-			struct conn *other = conn->other;
+epoll_again:
+	nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+	for (n = 0; n < nfds; n++) {
+		struct epoll_event *ev = &events[n];
+		struct conn *conn = ev->data.ptr;
 
-			if (conn->type == SPROTLY_LISTEN) {
-				do_accept(conn->fd);
-				continue;
-			} else if (conn->type == SPROTLY_SIGNAL) {
-				handle_signals(conn);
-				continue;
-			}
-
-			if (ev->events & (EPOLLERR | EPOLLHUP)) {
-				set_conn_close(&close_list, conn);
-				continue;
-			}
-
-			if (conn->type == SPROTLY_PEER && !conn->done_sni) {
-				read_sni(conn);
-				if (!conn->done_sni)
-					continue;
-				other = do_open_conn(proxy, conn);
-				if (!other) {
-					set_conn_close(&close_list, conn);
-					continue;
-				}
-				read_from_sock(conn);
-				continue;
-			} else if (conn->type == SPROTLY_PROXY &&
-				   conn->other->done_sni &&
-				   other->proxy_status != CONNECTED) {
-				proxy_handshake(conn);
-				if (other->proxy_status != CONNECTED)
-					continue;
-			}
-
-			if (ev->events & (EPOLLIN | EPOLLOUT)) {
-				bool from;
-				bool to;
-
-				from = read_from_sock(conn);
-				to = write_to_sock(other, conn);
-				if (!from || !to)
-					set_conn_close(&close_list, conn);
-
-				from = read_from_sock(other);
-				to = write_to_sock(conn, other);
-				if (!from || !to)
-					set_conn_close(&close_list, conn);
-			}
-		}
-		if (!close_list)
+		if (conn->type == SPROTLY_LISTEN) {
+			do_accept(conn->fd, proxy);
 			continue;
-
-		ac_slist_foreach(close_list, close_conn, NULL);
-		ac_slist_destroy(&close_list, free);
+		} else if (conn->type == SPROTLY_SIGNAL) {
+			handle_signals(conn);
+			continue;
+		}
 	}
+	goto epoll_again;
 }
 
 /*
