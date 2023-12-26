@@ -111,18 +111,17 @@ retrieved from the network stack.
 
 ## Architecture
 
-sprotly uses a multiprocess non-blocking I/O event driven model.
+sprotly uses a multiprocess, multi-threaded architecture.
 
-When started, sprotly will fork a worker process for each cpu in the system.
-These *worker* processes handle all the network I/O. They use *epoll(7)* for
-a scalable I/O event notification facility.
+When started, sprotly will fork a listen process for each cpu in the system.
+These *listen* processes wait for new client connections and hand them off to
+a *worker* thread.
 
 For the actual sending/receiving of data to/from client/proxy it uses the
 *splice(2)* system call which has the potential to allow for zero copy I/O.
 
-This in general should make sprotly pretty efficient. However it does make
-sprotly somewhat file descriptor hungry requiring *six* fd's per connection.
-i.e
+However it does make sprotly somewhat file descriptor hungry requiring *six*
+fd's per connection. i.e
 
     1 - peer socket
     2 - peer pipe read end
@@ -131,8 +130,8 @@ i.e
     5 - proxy pipe read end
     6 - proxy pipe write end
 
-however on modern 64bit systems with plenty of RAM this shouldn't really be an
-issue, hence at startup sprotly will attempt to increase RLIMIT\_NOFILE to
+although on modern 64bit systems with plenty of RAM this shouldn't really be
+an issue, hence at startup sprotly will attempt to increase RLIMIT\_NOFILE to
 *65536*. This limit is per-process and should allow for 10,000+ connections
 per worker.
 

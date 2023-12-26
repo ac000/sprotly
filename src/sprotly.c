@@ -6,6 +6,8 @@
  * Copyright (c) 2017		Securolytics, Inc.
  *				Andrew Clayton <andrew.clayton@securolytics.io>
  *
+ * Copyright (c) 2023		Andrew Clayton <andrew@digital-domain.net>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -497,7 +499,7 @@ static void create_workers(int nr_workers, const struct addrinfo *proxy)
 
 		pid = fork();
 		if (pid == 0) {	/* child */
-			set_proc_title("sprotly: worker");
+			set_proc_title("sprotly: listen");
 			init_proxy(proxy);
 		}
 	}
