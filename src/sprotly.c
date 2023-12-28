@@ -98,6 +98,7 @@ static void set_proc_title(const char *title)
 	size_t size = 0;
 	int i;
 	char *p;
+	char *pp;
 	char *argv_last;
 	extern char **environ;
 
@@ -105,6 +106,7 @@ static void set_proc_title(const char *title)
 		size += strlen(environ[i]) + 1;
 
 	p = malloc(size);
+	pp = p;
 
 	argv_last = rargv[0] + strlen(rargv[0]) + 1;
 
@@ -119,7 +121,7 @@ static void set_proc_title(const char *title)
 			argv_last = environ[i] + size;
 
 			snprintf(p, size, "%s", environ[i]);
-			environ[i] = p;
+			memcpy(environ[i], p, size);
 			p += size;
 		}
 	}
@@ -127,6 +129,8 @@ static void set_proc_title(const char *title)
 
 	rargv[1] = NULL;
 	strncpy(rargv[0], title, argv_last - rargv[0]);
+
+	free(pp);
 }
 
 static void unlink_pid(void)
