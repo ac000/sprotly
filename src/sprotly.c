@@ -472,15 +472,19 @@ static void do_listen(const char *where)
 		if (*l[0] == ':') {
 			bind_socket("::", *l + 1);
 			bind_socket("0.0.0.0", *l + 1);
-			return;
+
+			goto out_free;
 		}
 
 		if (!split_host_port(*l, host, port)) {
+			ac_str_freev(fields);
 			disp_usage();
 			exit(EXIT_FAILURE);
 		}
 		bind_socket(host, port);
 	}
+
+out_free:
 	ac_str_freev(fields);
 }
 
