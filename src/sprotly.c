@@ -457,10 +457,10 @@ static int bind_socket(const char *host, const char *port)
 	}
 	freeaddrinfo(res);
 
-	if (listener)
-		return 0;
-	else
+	if (!listener)
 		return -1;
+
+	return 0;
 }
 
 static void do_listen(const char *where)
