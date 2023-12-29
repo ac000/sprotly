@@ -107,6 +107,7 @@ struct conn {
 static int epollfd;
 extern bool use_sni;
 extern ac_slist_t *listen_fds;
+static ac_slist_t *listen_conns;
 
 static void reopen_logs(void)
 {
@@ -137,6 +138,8 @@ static void handle_signals(struct conn *conn)
 			close(epollfd);
 			free(conn);
 			ac_slist_destroy(&listen_fds, NULL);
+			ac_slist_destroy(&listen_conns, free);
+
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -591,6 +594,7 @@ void init_proxy(const struct addrinfo *proxy)
 		ev.events = EPOLLIN;
 		ev.data.ptr = (void *)conn;
 		epoll_ctl(epollfd, EPOLL_CTL_ADD, conn->fd, &ev);
+		ac_slist_preadd(&listen_conns, conn);
 		list = list->next;
 	}
 
@@ -617,6 +621,8 @@ void init_proxy(const struct addrinfo *proxy)
 	ev.events = EPOLLIN;
 	ev.data.ptr = (void *)conn;
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, conn->fd, &ev);
+
+	ac_slist_preadd(&listen_conns, (void *)proxy);
 
 	do_proxy(proxy);
 
