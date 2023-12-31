@@ -80,6 +80,14 @@ enum proxy_conn_state {
 	CONNECTED
 };
 
+enum eagain_state {
+	EAGAIN_RD = 0,
+	EAGAIN_WR = 1,
+
+	/* Represents the bit pattern 11, i.e both the above bits set */
+	EAGAIN_RDWR = 3
+};
+
 struct buffer {
 	int pipefds[2];
 	ssize_t bytes;
@@ -107,6 +115,8 @@ struct conn {
 	u64 bytes_rx;
 
 	const struct addrinfo *proxy;
+
+	u8 eagain_mask;
 
 	bool done_sni;
 };
@@ -157,6 +167,8 @@ static void handle_signals(struct conn *conn)
  */
 static bool write_to_sock(struct conn *dst, struct conn *src)
 {
+	AC_BYTE_BIT_SET(dst->eagain_mask, EAGAIN_WR);
+
 	while (src->buf.bytes > 0) {
 		ssize_t bytes = src->buf.bytes;
 		ssize_t bs;
@@ -177,6 +189,8 @@ static bool write_to_sock(struct conn *dst, struct conn *src)
 		src->buf.bytes -= bs;
 		if (dst->type == SPROTLY_PEER)
 			dst->bytes_rx += bs;
+
+		AC_BYTE_BIT_CLR(dst->eagain_mask, EAGAIN_WR);
 	}
 
 	return true;
@@ -187,6 +201,8 @@ static bool write_to_sock(struct conn *dst, struct conn *src)
  */
 static bool read_from_sock(struct conn *conn)
 {
+	AC_BYTE_BIT_SET(conn->eagain_mask, EAGAIN_RD);
+
 	for (;;) {
 		ssize_t bs = splice(conn->fd, NULL, conn->buf.pipefds[1], NULL,
 				    PIPE_SIZE,
@@ -202,6 +218,8 @@ static bool read_from_sock(struct conn *conn)
 		conn->buf.bytes += bs;
 		if (conn->type == SPROTLY_PEER)
                         conn->bytes_tx += bs;
+
+		AC_BYTE_BIT_CLR(conn->eagain_mask, EAGAIN_RD);
 	}
 
 	return true;
@@ -348,6 +366,8 @@ static struct conn *do_open_conn(struct conn *conn)
 
 	proxy->epfd = conn->epfd;
 
+	proxy->eagain_mask = 0;
+
 	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 	ev.data.ptr = (void *)proxy;
 	epoll_ctl(proxy->epfd, EPOLL_CTL_ADD, ofd, &ev);
@@ -398,13 +418,58 @@ out_sni_read:
 	conn->done_sni = true;
 }
 
+static bool try_io(struct conn *conn)
+{
+	struct conn *other = conn->other;
+	bool from;
+	bool to;
+
+	if (!other)
+		return true;
+
+	from = read_from_sock(conn);
+	to = write_to_sock(other, conn);
+	if (!from || !to)
+		return false;
+
+	from = read_from_sock(other);
+	to = write_to_sock(conn, other);
+	if (!from || !to)
+		return false;
+
+	return true;
+}
+
+static void set_epoll_timneout(const struct conn *conn, int *timeout)
+{
+	if (conn->eagain_mask == EAGAIN_RDWR &&
+	    conn->other && conn->other->eagain_mask == EAGAIN_RDWR) {
+		if (*timeout < 100)
+			*timeout += 10;
+		else if (*timeout < 1000)
+			*timeout += 100;
+		else if (*timeout < 2000)
+			*timeout += 250;
+		else if (*timeout < 5000)
+			*timeout += 500;
+		else
+			*timeout = 5000;
+
+		return;
+	}
+
+	*timeout = 10;
+}
+
 static void *handle_new_conn(void *arg)
 {
 	struct conn *conn = arg;
 	struct epoll_event nev;
 	struct epoll_event events[MAX_EVENTS];
 	ac_slist_t *close_list = NULL;
+	ac_slist_t *conns = NULL;
 	int worker_epfd;
+	int timeout = 10;
 	int nfds;
 	int n;
 	int err;
@@ -421,12 +486,27 @@ static void *handle_new_conn(void *arg)
 	worker_epfd = epoll_create1(0);
 	conn->epfd = worker_epfd;
 
+	ac_slist_preadd(&conns, conn);
+
 	nev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 	nev.data.ptr = (void *)conn;
 	epoll_ctl(worker_epfd, EPOLL_CTL_ADD, conn->fd, &nev);
 
 epoll_again:
-	nfds = epoll_wait(worker_epfd, events, MAX_EVENTS, -1);
+	nfds = epoll_wait(worker_epfd, events, MAX_EVENTS, timeout);
+	if (nfds == 0) {
+		ac_slist_t *list = conns;
+
+		while (list) {
+			bool ok;
+
+			ok = try_io(list->data);
+			if (!ok)
+				set_conn_close(&close_list, list->data);
+			list = list->next;
+		}
+	}
+
 	for (n = 0; n < nfds; n++) {
 		struct epoll_event *ev = &events[n];
 		struct conn *other;
@@ -456,25 +536,25 @@ epoll_again:
 			proxy_handshake(conn);
 			if (other->proxy_status != CONNECTED)
 				continue;
+
+			ac_slist_preadd(&conns, conn);
 		}
 
 		if (ev->events & (EPOLLIN | EPOLLOUT)) {
-			bool from;
-			bool to;
+			bool ok;
 
-			from = read_from_sock(conn);
-			to = write_to_sock(other, conn);
-			if (!from || !to)
-				set_conn_close(&close_list, conn);
-
-			from = read_from_sock(other);
-			to = write_to_sock(conn, other);
-			if (!from || !to)
+			ok = try_io(conn);
+			if (!ok)
 				set_conn_close(&close_list, conn);
 		}
 	}
-	if (!close_list)
+
+	if (!close_list) {
+		set_epoll_timneout(conn, &timeout);
 		goto epoll_again;
+	}
+
+	ac_slist_destroy(&conns, NULL);
 
 	ac_slist_foreach(close_list, close_conn, NULL);
 	ac_slist_destroy(&close_list, free);
@@ -532,6 +612,7 @@ accept_again:
 	conn->dst_host[0] = '\0';
 	conn->bytes_tx = 0;
 	conn->bytes_rx = 0;
+	conn->eagain_mask = 0;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK_SZ);
