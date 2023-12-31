@@ -62,7 +62,7 @@ static inline void logit(const char *fmt, ...)
 		dprintf(access_log_fd, "%s", logbuf);
 	} else {
 		time_t secs = time(NULL);
-		struct tm *tm = localtime(&secs);
+		const struct tm *tm = localtime(&secs);
 		char tsbuf[32];
 
 		strftime(tsbuf, sizeof(tsbuf), "%F %T %z", tm);
